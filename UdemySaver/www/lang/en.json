@@ -1,0 +1,42 @@
+{
+  "library.title": "Your Library",
+  "library.count_suffix": "courses",
+
+  "search.title": "Search courses (filters by title)",
+  "search.placeholder": "Search title...",
+
+  "actions.refresh": "Refresh",
+  "actions.update": "Update",
+  "actions.save": "Save",
+
+  "auth.status_checking": "Status: checking…",
+  "auth.open": "signed in",
+  "auth.closed": "signed out",
+  "auth.missing_title": "Looks like you’re not signed in.",
+  "auth.help": "Add udemy_access_token=... into settings.ini or enter token below:",
+  "auth.token_empty": "Token cannot be empty.",
+  "auth.save_failed": "Could not save.",
+  "auth.saved_reload": "Saved. Reloading page...",
+  "auth.error_prefix": "Error: ",
+
+  "card.download": "Download",
+  "card.open": "Open",
+
+  "pager.prev": "‹ Previous",
+  "pager.next": "Next ›",
+  "pager.page_fmt": "Page {page} / {total}",
+
+  "queue.title": "Download Queue",
+  "queue.empty": "Queue is empty.",
+  "queue.waiting": "idle",
+  "queue.collecting": "collecting…",
+
+  "toast.exists": "Already exists: {title}",
+  "toast.collecting": "Collecting: {title}",
+  "toast.added_summary": "Queued: {added}/{seen} • skipped:{skipped} • exists:{exists}",
+  "toast.course_done": "Course already downloaded: {title}",
+
+  "grid.empty": "No courses on this page.",
+  "quality.label": "Quality: {q}",
+  "img.placeholder": "No image"
+}

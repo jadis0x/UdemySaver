@@ -1,0 +1,79 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UdemySaver</title>
+    <link rel="stylesheet" href="/www/theme.css">
+</head>
+<body>
+    <!-- NAV -->
+    <div class="nav">
+        <div class="nav-in">
+            <div class="brand"><span class="dot"></span><b>UdemySaver</b></div>
+            <div class="grow"></div>
+            <div class="search" id="searchBox">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke="#9aa6b2" stroke-width="2" stroke-linecap="round" /></svg>
+                <input id="q" placeholder="Search title..." />
+            </div>
+
+            <select id="langSelect" class="pill lang-select">
+                <option value="en">EN</option>
+                <option value="tr">TR</option>
+            </select>
+
+            <div class="user" id="userbox" style="display:none">
+                <img id="avatar" class="avatar" alt=""><span class="uname" id="uname"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- HERO -->
+    <div class="hero">
+        <h1 data-i18n="library.title">Your Library</h1>
+        <span class="muted" id="countInfo"></span>
+        <div class="grow"></div>
+        <button class="btn ghost" id="refreshBtn" data-i18n="actions.refresh">Refresh</button>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="wrap">
+        <div id="authWarn" class="empty" style="display:none">
+            <b data-i18n="auth.missing_title">Looks like you're not signed in.</b>
+            <div style="margin-top:6px" data-i18n="auth.help">
+                Add <code>udemy_access_token=...</code> into settings.ini or enter token below:
+            </div>
+            <div style="display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap">
+                <input id="tokenInput" type="password" placeholder="Udemy access token" style="flex:1; min-width:260px; background:#0e1624; color:#e6eef8; border:1px solid var(--border); border-radius:8px; padding:8px 10px;" />
+                <button class="btn primary" id="saveTokenBtn" data-i18n="actions.save">Save</button>
+            </div>
+            <div id="authMsg" class="muted" style="margin-top:8px"></div>
+        </div>
+
+        <div id="grid" class="grid"></div>
+
+        <div class="pager" id="pager" style="display:none">
+            <button class="btn" id="prevBtn" data-i18n="pager.prev">‹ Previous</button>
+            <span class="page-num" id="pageInfo">Page 1</span>
+            <button class="btn" id="nextBtn" data-i18n="pager.next">Next ›</button>
+        </div>
+    </div>
+
+    <!-- QUEUE -->
+    <div class="queue" id="queue">
+        <div class="q-head">
+            <h3 data-i18n="queue.title">Download Queue</h3>
+            <div class="grow"></div>
+            <span class="pill" id="qPill">
+                <span id="qRunning" data-i18n="queue.waiting">idle</span>
+            </span>
+            <button class="btn" id="qRefresh" data-i18n="actions.update">Update</button>
+        </div>
+        <div class="q-list" id="qList">
+            <div class="q-empty" data-i18n="queue.empty">Queue is empty.</div>
+        </div>
+    </div>
+
+    <script src="/www/app.js"></script>
+</body>
+</html>

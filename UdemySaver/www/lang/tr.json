@@ -1,0 +1,42 @@
+{
+  "library.title": "Kitaplığın",
+  "library.count_suffix": "kurs",
+
+  "search.title": "Kurs ara (başlıkta filtreler)",
+  "search.placeholder": "Başlıkta ara...",
+
+  "actions.refresh": "Yenile",
+  "actions.update": "Güncelle",
+  "actions.save": "Kaydet",
+
+  "auth.status_checking": "Durum: kontrol ediliyor…",
+  "auth.open": "oturum açık",
+  "auth.closed": "kapalı",
+  "auth.missing_title": "Giriş yapılmamış görünüyor.",
+  "auth.help": "settings.ini içine udemy_access_token=... ekleyebilir ya da aşağıdan token girebilirsin:",
+  "auth.token_empty": "Token boş olamaz.",
+  "auth.save_failed": "Kaydedilemedi.",
+  "auth.saved_reload": "Kaydedildi. Sayfa yenileniyor...",
+  "auth.error_prefix": "Hata: ",
+
+  "card.download": "İndir",
+  "card.open": "Aç",
+
+  "pager.prev": "‹ Önceki",
+  "pager.next": "Sonraki ›",
+  "pager.page_fmt": "Sayfa {page} / {total}",
+
+  "queue.title": "İndirme Kuyruğu",
+  "queue.empty": "Kuyruk boş.",
+  "queue.waiting": "beklemede",
+  "queue.collecting": "toplanıyor…",
+
+  "toast.exists": "Zaten var: {title}",
+  "toast.collecting": "Toplanıyor: {title}",
+  "toast.added_summary": "Kuyruğa eklendi: {added}/{seen} • atlanan:{skipped} • zaten var:{exists}",
+  "toast.course_done": "Kurs zaten inmiş: {title}",
+
+  "grid.empty": "Bu sayfada kurs bulunamadı.",
+  "quality.label": "Kalite: {q}",
+  "img.placeholder": "Görsel yok"
+}
