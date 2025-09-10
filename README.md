@@ -20,7 +20,7 @@ You can also start the program without a token and paste it via the web interfac
 | Boost (system, thread, beast) | Networking primitives     |
 | libcurl                | HTTP requests & downloads |
 | nlohmann\_json         | JSON parsing              |
-| OpenSSL                | TLS support               |
+
 
 
 
