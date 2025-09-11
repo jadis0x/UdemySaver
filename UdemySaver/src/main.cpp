@@ -12,7 +12,9 @@ int main() {
         auto server = std::make_shared<HttpServer>(ioc, 8080, handler);
         server->run();
 
-        std::cout << "Listening on http://127.0.0.1:8080\n";
+        std::cout << "[+] UdemySaver server started!\n";
+        std::cout << "[+] Open http://127.0.0.1:8080 in your browser to access the web interface.\n";
+        std::cout << "[+] Press Ctrl+C to stop the server.\n";
         ioc.run();
     }
     catch (const std::exception& e) {
