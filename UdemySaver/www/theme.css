@@ -1,17 +1,17 @@
 :root {
-    --bg: #0f2d62;
-    --panel: rgba(255,255,255,.08);
-    --fg: #ffffff;
-    --muted: #d0e0ff;
-    --acc: #00a5e4;
-    --accent-2: #2dd4ff;
-    --chip: rgba(255,255,255,.18);
-    --ok: #38ef7d;
-    --warn: #ffe45e;
-    --err: #ff4b5c;
-    --border: rgba(255,255,255,.25);
-    --border-strong: rgba(255,255,255,.45);
-    --shadow: 0 30px 80px rgba(0,0,0,.45);
+    --bg: #0f172a;
+    --panel: rgba(255,255,255,.06);
+    --fg: #e5e7eb;
+    --muted: #9ca3af;
+    --acc: #3b82f6;
+    --accent-2: #6366f1;
+    --chip: rgba(255,255,255,.08);
+    --ok: #10b981;
+    --warn: #fbbf24;
+    --err: #ef4444;
+    --border: rgba(255,255,255,.1);
+    --border-strong: rgba(255,255,255,.3);
+    --shadow: 0 30px 80px rgba(0,0,0,.6);
     --radius: 20px;
     --radius-sm: 14px;
     --control-h: 40px;
@@ -28,34 +28,19 @@ html, body {
 
 body {
     margin: 0;
-    background: radial-gradient(circle at 20% 20%, #4fb5ff 0%, #0046b8 70%), radial-gradient(circle at 80% 120%, #80e1ff 0%, #001845 70%), var(--bg);
+    background: linear-gradient(180deg, #111827, #0f172a);
     color: var(--fg);
-     font: 15px/1.6 "Nunito", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font: 15px/1.6 "Nunito", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 	position: relative;
     overflow-x: hidden;
 }
 
-body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background-image: radial-gradient(circle, rgba(255,255,255,.25) 1px, transparent 1px), radial-gradient(circle, rgba(255,255,255,.15) 1px, transparent 1px);
-    background-size: 60px 60px, 60px 60px;
-    background-position: 0 0, 30px 30px;
-    opacity: .15;
-    pointer-events: none;
-    animation: starsMove 60s linear infinite;
-}
 
 body::after {
-    content: "";
-    position: fixed;
-    inset: -10%;
-    background: radial-gradient(circle at 15% 15%, rgba(255,255,255,.15), transparent 60%), radial-gradient(circle at 85% 35%, rgba(0,173,255,.25), transparent 70%), radial-gradient(circle at 40% 80%, rgba(0,89,255,.2), transparent 60%);
-    filter: blur(60px);
-    pointer-events: none;
+    display: none;
+    content: none;
 }
 
 @keyframes starsMove {
@@ -77,12 +62,9 @@ img {
     position: sticky;
     top: 0;
     z-index: 100;
-    backdrop-filter: saturate(140%) blur(18px);
-    background: linear-gradient(180deg, rgba(20,20,20,.9), rgba(20,20,20,.7));
-    backdrop-filter: saturate(180%) blur(18px);
-    background: linear-gradient(180deg, rgba(0,163,255,.9), rgba(0,87,183,.85));
+	background: linear-gradient(180deg, rgba(30,41,59,.95), rgba(15,23,42,.9));
     border-bottom: 1px solid var(--border);
-    box-shadow: 0 2px 12px rgba(0,163,255,.4);
+    box-shadow: 0 2px 12px rgba(0,0,0,.5);
 }
 
 .nav-in {
@@ -106,15 +88,12 @@ img {
     position: relative;
 }
 
-    .brand .dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: var(--acc);
-        display: inline-block;
-        box-shadow: 0 0 10px var(--acc);
-    }
-	
+.brand .logo {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
 	.brand::after {
         content: "";
         position: absolute;
@@ -539,22 +518,21 @@ img {
     color: #dce2eb;
 }
     .state.loading {
-        position: relative;
-        padding-left: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 17px 12px;
     }
 
         .state.loading::before {
             content: "";
-            position: absolute;
-            left: 10px;
-            top: 50%;
-            width: 10px;
-            height: 10px;
-            display: block;
+			width: 12px;
+            height: 12px;
             border: 2px solid rgba(255,255,255,.3);
             border-top-color: currentColor;
             border-radius: 50%;
-            animation: spinCenter 1s linear infinite;
+            animation: spinOnly 1s linear infinite;
         }
 
     .state.ok {

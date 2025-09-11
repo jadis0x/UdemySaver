@@ -386,9 +386,13 @@ qList.innerHTML = rows;
 
 qList.querySelectorAll('button[data-act]').forEach(btn=>{
   btn.addEventListener('click', async ()=>{
-    const cid=btn.getAttribute('data-cid');
-    const act=btn.getAttribute('data-act');
-    await fetch(`/queue/${act}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({course_id:Number(cid)})});
+     const cid = btn.getAttribute('data-cid');
+    const act = btn.getAttribute('data-act');
+    fetch(`/queue/${act}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({course_id:Number(cid)})
+    }).catch(()=>{});
     qTick(true);
   });
 });
