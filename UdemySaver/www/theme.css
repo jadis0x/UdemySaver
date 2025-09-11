@@ -83,22 +83,24 @@ img {
 }
 
 .nav-in {
-    max-width: 1400px;
+    max-width: 1500px;
     margin: 0 auto;
-    padding: 20px 50px;
+    padding: 10px 50px;
     display: flex;
     align-items: center;
     gap: 16px;
 }
 
 .brand {
-    display: flex;
+   display: flex;
     align-items: center;
-    gap: 10px;
-	font-size: 15px;
+    gap: 5px;
+    font-size: 13px;
     font-family: 'Inter', sans-serif;
     letter-spacing: .5px;
     color: var(--fg);
+    text-align: center;
+    flex-direction: row;
 }
 
 .brand .logo {
@@ -107,6 +109,15 @@ img {
     flex-shrink: 0;
 }
 
+.support {
+        display: flex;
+    gap: 0;
+    flex-wrap: nowrap;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
 
 .grow {
     flex: 1
@@ -260,7 +271,7 @@ img {
 .card {
     position: relative;
     display: flex;
-    flex: 0 0 320px;
+    flex: 0 0 250px;
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -359,13 +370,13 @@ img {
 
 /* ==================== BUTTONS ==================== */
 .btn {
-    padding: 0 13px;
+    padding: 0 15px;
     min-height: var(--control-h);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
 	background: var(--panel);
     color: var(--fg);
-    font-weight: 700;
+    font-weight: 600;
     font-size: 13px;
     cursor: pointer;
     display: inline-flex;
@@ -484,6 +495,10 @@ img {
 .q-sub {
     font-size: 11px;
     color: var(--muted)
+}
+
+.q-ctrl {
+    margin: 12px 0 0 0;
 }
 
 .bar {
