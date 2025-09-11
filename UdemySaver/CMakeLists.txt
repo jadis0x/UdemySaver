@@ -1,5 +1,4 @@
-﻿
-# Add source to this project's executable.
+﻿# Add source to this project's executable.
 add_executable (UdemySaver 
     "src/main.cpp"
     "src/server/HttpServer.cpp"
@@ -23,10 +22,6 @@ target_link_libraries(UdemySaver PRIVATE Boost::system Boost::thread)
 # nlohmann_json
 find_package(nlohmann_json CONFIG REQUIRED)
 target_link_libraries(UdemySaver PRIVATE nlohmann_json::nlohmann_json)
-
-find_package(OpenSSL REQUIRED)
-target_link_libraries(UdemySaver PRIVATE OpenSSL::SSL)
-target_link_libraries(UdemySaver PRIVATE OpenSSL::Crypto)
 
 set(WEB_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/www)
 file(MAKE_DIRECTORY ${WEB_ROOT})

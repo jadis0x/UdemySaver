@@ -1,11 +1,11 @@
 :root {
-    --bg: #0b0b0c;
-    --panel: #101114;
-    --fg: #f5f7fa;
-    --muted: #aeb4c0;
-    --acc: #33a3fc;
-    --accent-2: #00fffa;
-    --chip: #14161a;
+    --bg: #141414;
+    --panel: #181818;
+    --fg: #f5f5f1;
+    --muted: #b3b3b3;
+    --acc: #e50914;
+    --accent-2: #b20710;
+    --chip: #222;
     --ok: #32d74b;
     --warn: #ffd60a;
     --err: #ff453a;
@@ -28,7 +28,7 @@ html, body {
 
 body {
     margin: 0;
-    background: radial-gradient(1200px 800px at 20% -10%, rgba(10,132,255,.08), transparent 55%), radial-gradient(900px 700px at 80% -20%, rgba(100,210,255,.05), transparent 50%), var(--bg);
+    background: var(--bg);
     color: var(--fg);
     font: 15px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -50,7 +50,7 @@ img {
     top: 0;
     z-index: 100;
     backdrop-filter: saturate(140%) blur(18px);
-    background: linear-gradient(180deg, rgba(16,17,20,.82), rgba(16,17,20,.68));
+    background: linear-gradient(180deg, rgba(20,20,20,.9), rgba(20,20,20,.7));
     border-bottom: 1px solid var(--border);
 }
 
@@ -136,8 +136,8 @@ img {
 
     .lang-select:focus {
         outline: none;
-        box-shadow: 0 0 0 2px rgba(10,132,255,.35);
-        border-color: rgba(10,132,255,.5)
+        box-shadow: 0 0 0 2px rgb(255 255 255);
+        border-color: rgb(255 255 255 / 50%)
     }
 
     .lang-select::-ms-expand {
@@ -191,7 +191,7 @@ img {
 
 .hero {
     max-width: 1400px;
-    margin: 22px auto 12px;
+    margin: 40px auto 20px;
     padding: 0 20px;
     display: flex;
     align-items: center;
@@ -201,8 +201,8 @@ img {
 
     .hero h1 {
         margin: 0;
-        font-size: 30px;
-        font-weight: 800;
+        font-size: 42px;
+        font-weight: 700;
         letter-spacing: .2px
     }
 
@@ -219,22 +219,26 @@ img {
 
 /* ==================== GRID ==================== */
 .grid {
-    display: grid;
+    display: flex;
     gap: 20px;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    grid-auto-rows: 1fr;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 10px;
 }
 
 /* ==================== CARD ==================== */
 .card {
     position: relative;
-    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    display: flex;
+    flex: 0 0 220px;
+    background: var(--panel);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
     box-shadow: var(--shadow);
-    display: flex;
     flex-direction: column;
+    scroll-snap-align: start;
     transition: transform .22s ease, filter .2s ease, box-shadow .22s ease, border-color .22s ease;
 }
 
@@ -352,17 +356,17 @@ img {
 
     .btn:focus-visible {
         outline: none;
-        box-shadow: 0 0 0 2px rgba(10,132,255,.35);
-        border-color: rgba(10,132,255,.5)
+        box-shadow: 0 0 0 2px rgba(229,9,20,.35);
+        border-color: rgba(229,9,20,.5)
     }
 
     .btn.primary {
-        background: linear-gradient(180deg, rgba(10,132,255,.9), rgba(10,132,255,.75));
-        border-color: rgba(10,132,255,.6);
+        background: linear-gradient(180deg, rgba(229,9,20,.9), rgba(229,9,20,.75));
+        border-color: rgba(229,9,20,.6);
     }
 
         .btn.primary:hover {
-            background: linear-gradient(180deg, rgba(10,132,255,1), rgba(10,132,255,.85));
+background: linear-gradient(180deg, rgba(229,9,20,1), rgba(229,9,20,.85));       
         }
 
     .btn.ghost {
@@ -371,6 +375,10 @@ img {
     }
 
 /* ==================== EMPTY / PAGER ==================== */
+.grid .empty {
+    width: 100%;
+}
+
 .empty {
     background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
     border: 1px dashed var(--border);
@@ -539,7 +547,6 @@ img {
 @media (max-width:1024px) {
     .grid {
         gap: 16px;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))
     }
 }
 
@@ -551,7 +558,6 @@ img {
 
     .grid {
         gap: 12px;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))
     }
 }
 
