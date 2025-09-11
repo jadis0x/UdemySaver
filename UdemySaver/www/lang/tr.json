@@ -8,6 +8,7 @@
   "actions.refresh": "Yenile",
   "actions.update": "Güncelle",
   "actions.save": "Kaydet",
+  "actions.signout": "Çıkış yap",
 
   "auth.status_checking": "Durum: kontrol ediliyor…",
   "auth.open": "oturum açık",

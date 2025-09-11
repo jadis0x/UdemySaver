@@ -8,6 +8,7 @@
   "actions.refresh": "Refresh",
   "actions.update": "Update",
   "actions.save": "Save",
+  "actions.signout": "Sign out",
 
   "auth.status_checking": "Status: checking…",
   "auth.open": "signed in",

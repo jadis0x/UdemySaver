@@ -49,7 +49,7 @@ if(pageInfo && window.state){ pageInfo.textContent = t('pager.page_fmt', {page: 
 const grid = $('#grid'), pager = $('#pager'), pageInfo = $('#pageInfo');
 const prevBtn = $('#prevBtn'), nextBtn = $('#nextBtn'), refreshBtn = $('#refreshBtn');
 const authWarn = $('#authWarn'), authPill = $('#auth-pill');
-const userbox = $('#userbox'), avatar = $('#avatar'), uname = $('#uname');
+const userbox = $('#userbox'), avatar = $('#avatar'), uname = $('#uname'), signOutBtn = $('#signOutBtn');
 const countInfo = $('#countInfo'), qInput = $('#q');
 
 let state = { page:1, page_size:12, total:0, auth:false, items:[], filter:"" };
@@ -97,11 +97,18 @@ if (userbox) userbox.style.display = 'flex';
 if (avatar) avatar.src = data.user.image_50x50 || data.user.image_100x100 || '';
 if (uname) uname.textContent = data.user.display_name || data.user.title || 'User';
 if (authWarn) authWarn.style.display = 'none';
+if (signOutBtn) signOutBtn.style.display = 'inline-flex';
 } else {
 if (authPill) authPill.textContent = t('auth.closed');
 if (userbox) userbox.style.display = 'none';
 if (authWarn) authWarn.style.display = 'block';
+if (signOutBtn) signOutBtn.style.display = 'none';
 }
+}
+
+async function signOut(){
+const r = await fetch('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ udemy_access_token: '' }) }).catch(()=>({ok:false}));
+if(r && r.ok){ location.reload(); }
 }
 
 async function setLang(lang){
@@ -171,10 +178,41 @@ if(nextBtn) nextBtn.disabled = state.page>=totalPages;
 
 /* ===== busy pill (spinner only) ===== */
 let __busy = 0; const qPill = $('#qPill');
-function showBusy(msgKey='queue.collecting'){ __busy++; if(qPill) qPill.classList.add('loading'); const e=$('#qRunning'); if(e) e.innerHTML = `<i class="spin"></i>${t(msgKey)}`; }
-function setBusyTextTextual(text){ const e=$('#qRunning'); if(e) e.innerHTML = `<i class="spin"></i>${text}`; }
-function setBusyText(msgKey){ if(__busy<=0) return; const e=$('#qRunning'); if(e) e.innerHTML = `<i class="spin"></i>${t(msgKey)}`; }
-function hideBusy(){ __busy=Math.max(0,__busy-1); if(__busy===0){ if(qPill) qPill.classList.remove('loading'); const e=$('#qRunning'); if(e) e.textContent=''; } }
+function showBusy(msgKey='queue.collecting'){
+    __busy++;
+    if(qPill){
+        qPill.style.display='';
+        qPill.classList.add('loading');
+    }
+    const e=$('#qRunning');
+    if(e) e.innerHTML = `<i class="spin"></i>${t(msgKey)}`;
+}
+function setBusyTextTextual(text){
+    const e=$('#qRunning');
+    if(e){
+        if(qPill) qPill.style.display='';
+        e.innerHTML = `<i class="spin"></i>${text}`;
+    }
+}
+function setBusyText(msgKey){
+    if(__busy<=0) return;
+    const e=$('#qRunning');
+    if(e){
+        if(qPill) qPill.style.display='';
+        e.innerHTML = `<i class="spin"></i>${t(msgKey)}`;
+    }
+}
+function hideBusy(){
+    __busy=Math.max(0,__busy-1);
+    if(__busy===0){
+        if(qPill){
+            qPill.classList.remove('loading');
+            qPill.style.display='none';
+        }
+        const e=$('#qRunning');
+        if(e) e.textContent='';
+    }
+}
 
 /* ===== quality toggle ===== */
 document.addEventListener('keydown', e=>{
@@ -283,8 +321,13 @@ if(!force && document.hidden) return;
 const data = await getJSON('/queue');
 
 const run = $('#qRunning');
-if(__busy>0){ /* spinner text handled in busy helpers */ }
-else if(run){ run.textContent=''; }
+if(__busy>0){
+    if(qPill) qPill.style.display=''; /* spinner text handled in busy helpers */
+}
+else if(run){
+    run.textContent='';
+    if(qPill) qPill.style.display='none';
+}
 
 const byCourse = new Map();
 if(Array.isArray(data.courses)){
@@ -346,6 +389,8 @@ if(nextBtn) nextBtn.addEventListener('click',()=>loadPage(state.page+1));
 if(refreshBtn) refreshBtn.addEventListener('click',()=>loadPage(state.page));
 const qRefreshBtn=$('#qRefresh'); if(qRefreshBtn) qRefreshBtn.addEventListener('click',()=>qTick(true));
 if(qInput) qInput.addEventListener('input',()=>{ state.filter=qInput.value||''; renderGrid(); });
+if(signOutBtn) signOutBtn.addEventListener('click', signOut);
+
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) qTick(true); });
 window.addEventListener('load', ()=>{ const btn = document.getElementById('saveTokenBtn'); if(btn) btn.addEventListener('click', saveTokenFromUI); });
 
