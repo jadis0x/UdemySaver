@@ -252,7 +252,7 @@ void RequestHandler::load_settings() {
 	if (ini.empty()) {
 		std::ofstream f("settings.ini");
 		if (f) {
-			f << "# CourseFlix settings\n";
+			f << "# UdemySaver settings\n";
 			f << "udemy_access_token=\n";
 			f << "udemy_api_base=https://www.udemy.com\n";
 			f << "# http_proxy=\n";
