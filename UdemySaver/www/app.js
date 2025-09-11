@@ -210,7 +210,7 @@ function hideBusy(){
             qPill.style.display='none';
         }
         const e=$('#qRunning');
-        if(e) e.textContent='';
+        if(e) e.textContent=t('queue.waiting');
     }
 }
 
@@ -320,15 +320,6 @@ async function qTick(force=false){
 if(!force && document.hidden) return;
 const data = await getJSON('/queue');
 
-const run = $('#qRunning');
-if(__busy>0){
-    if(qPill) qPill.style.display=''; /* spinner text handled in busy helpers */
-}
-else if(run){
-    run.textContent='';
-    if(qPill) qPill.style.display='none';
-}
-
 const byCourse = new Map();
 if(Array.isArray(data.courses)){
 for(const c of data.courses){
@@ -349,22 +340,13 @@ if(!__courseSize.has(row.course_id)) ensureCourseSize(row.course_id, preferredQu
 }
 
 const qList = $('#qList'); if(!qList) return;
-if(byCourse.size===0){ qList.innerHTML=`<div class="q-empty">${t('queue.empty')}</div>`; return; }
-
+if(byCourse.size===0){ qList.innerHTML=`<div class="q-empty">${t('queue.empty')}</div>`; }
+else {
 const rows = [...byCourse.values()].map(row=>{
 const pct = Math.round(clamp01(row.total? row.done/row.total : 0)*100) || row.pct || 0;
 const sz = __courseSize.get(row.course_id);
 const sizeTxt = sz && sz.bytes>0 ? ` • ${fmtBytes(sz.bytes)}` : '';
 const sub = `${row.done}/${row.total} • %${pct}${sizeTxt}`;
-
-/*
-let sclass='state'; if(row.state==='done') sclass+=' ok'; if(row.state==='failed') sclass+=' err';
-*/
-
-let sclass = 'state';
-if (row.state === 'downloading') sclass += ' loading';
-if (row.state === 'done')        sclass += ' ok';
-if (row.state === 'failed')      sclass += ' err';
 
 const btn = row.state === 'paused'
     ? `<button class="btn sm" data-act="resume" data-cid="${row.course_id}">${t('actions.resume')}</button>`
@@ -379,7 +361,6 @@ return `
 <div class="bar"><i style="width:${pct}%"></i></div>
 </div>
 <div class="q-ctrl">${btn}</div>
-<div class="${sclass}">${row.state}</div>
 </div>`;
 }).join('');
 qList.innerHTML = rows;
@@ -396,7 +377,21 @@ qList.querySelectorAll('button[data-act]').forEach(btn=>{
     qTick(true);
   });
 });
+}
 
+
+if(__busy===0){
+    const run = $('#qRunning');
+    if(run && qPill){
+        let statusKey = 'queue.waiting';
+        for(const row of byCourse.values()){
+            if(row.state==='downloading'){ statusKey='queue.downloading'; break; }
+            if(row.state==='failed'){ statusKey='queue.failed'; break; }
+            if(row.state==='paused'){ statusKey='queue.paused'; }
+        }
+        run.textContent = t(statusKey);
+        qPill.style.display='';
+    }
 }
 
 /* ===== tiny toast ===== */
@@ -406,7 +401,6 @@ let toastTimer=null; function toast(msg){ let t=document.getElementById('cf_toas
 if(prevBtn) prevBtn.addEventListener('click',()=>loadPage(state.page-1));
 if(nextBtn) nextBtn.addEventListener('click',()=>loadPage(state.page+1));
 if(refreshBtn) refreshBtn.addEventListener('click',()=>loadPage(state.page));
-const qRefreshBtn=$('#qRefresh'); if(qRefreshBtn) qRefreshBtn.addEventListener('click',()=>qTick(true));
 if(qInput) qInput.addEventListener('input',()=>{ state.filter=qInput.value||''; renderGrid(); });
 if(signOutBtn) signOutBtn.addEventListener('click', signOut);
 

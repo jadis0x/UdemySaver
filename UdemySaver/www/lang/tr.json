@@ -6,7 +6,6 @@
   "search.placeholder": "Başlıkta ara...",
 
   "actions.refresh": "Yenile",
-  "actions.update": "Güncelle",
   "actions.save": "Kaydet",
   "actions.signout": "Çıkış yap",
   "actions.pause": "Durdur",
@@ -32,6 +31,9 @@
   "queue.title": "İndirme Kuyruğu",
   "queue.empty": "Kuyruk boş.",
   "queue.waiting": "beklemede",
+  "queue.downloading": "indiriliyor",
+  "queue.paused": "duraklatıldı",
+  "queue.failed": "hata",
   "queue.collecting": "toplanıyor…",
 
   "toast.exists": "Zaten var: {title}",
