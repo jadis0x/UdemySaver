@@ -1,19 +1,37 @@
+/* width */
+::-webkit-scrollbar {
+  width: 20px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  box-shadow: inset 0 0 1px grey;
+  border-radius: 1px;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 0px;
+	cursor: pointer;
+}
+
 :root {
-    --bg: #121212;
-    --panel: #1e1e1e;
+    --bg: #080808;
+    --panel: #000000;
     --fg: #f1f1f1;
-    --muted: #9ca3af;
-    --acc: #3b82f6;
+    --muted: #a3a3a3;
+    --acc: #00679f;
     --accent-2: #2563eb;
     --chip: #2a2a2a;
-    --ok: #10b981;
+    --ok: #46c69b;
     --warn: #fbbf24;
-    --err: #ef4444;
-    --border: #2a2a2a;
-    --border-strong: #3a3a3a;
+    --err: #ff7070;
+    --border: #1a1a1a;
+    --border-strong: #2d2d2d;
     --shadow: none;
-    --radius: 8px;
-    --radius-sm: 6px;
+    --radius: 1px;
+    --radius-sm: 0px;
     --control-h: 36px;
     --specular: none;
 }
@@ -67,7 +85,7 @@ img {
 .nav-in {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 10px 20px;
+    padding: 20px 50px;
     display: flex;
     align-items: center;
     gap: 16px;
@@ -77,15 +95,15 @@ img {
     display: flex;
     align-items: center;
     gap: 10px;
-	font-size: 20px;
+	font-size: 15px;
     font-family: 'Inter', sans-serif;
     letter-spacing: .5px;
     color: var(--fg);
 }
 
 .brand .logo {
-    width: 24px;
-    height: 24px;
+    width: 45px;
+    height: 45px;
     flex-shrink: 0;
 }
 
@@ -107,7 +125,7 @@ img {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 0 12px;
-    width: 360px;
+    width: 450px;
     max-width: 42vw;
 }
 
@@ -191,7 +209,7 @@ img {
     height: 28px;
     border-radius: 50%;
     object-fit: cover;
-    background: #23252b
+    background: #000000
 }
 
 .uname {
@@ -201,8 +219,8 @@ img {
 
 .hero {
     max-width: 1400px;
-    margin: 40px auto 20px;
-    padding: 0 20px;
+    margin: 70px auto 30px;
+    padding: 0 15px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -211,7 +229,7 @@ img {
 
     .hero h1 {
         margin: 0;
-       font-size: 36px;
+       font-size: 33px;
         font-family: 'Inter', sans-serif;
         letter-spacing: .5px;
 		color: var(--fg);
@@ -231,18 +249,18 @@ img {
 /* ==================== GRID ==================== */
 .grid {
     display: flex;
-    gap: 20px;
+    gap: 40px;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
-    padding-bottom: 10px;
+    padding-bottom: 20px;
 }
 
 /* ==================== CARD ==================== */
 .card {
     position: relative;
     display: flex;
-    flex: 0 0 220px;
+    flex: 0 0 320px;
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -266,10 +284,9 @@ img {
     }
 
     .card:hover {
-        transform: translateY(-4px) scale(1.02);
-        box-shadow: 0 40px 110px rgba(0,163,255,.35), 0 0 0 1px rgba(255,255,255,.08) inset;
+        transform: scale(1.05);
         border-color: var(--border-strong);
-        filter: saturate(1.15);
+        cursor: pointer;
     }
 
 .thumb-wrap {
@@ -292,7 +309,7 @@ img {
     position: absolute;
     left: 10px;
     top: 10px;
-    font-size: 11px;
+    font-size: 13px;
     color: #eef3f8;
     background: rgba(15,16,20,.65);
     border: 1px solid rgba(255,255,255,.12);
@@ -302,7 +319,7 @@ img {
 }
 
 .body {
-    padding: 12px;
+    padding: 15px;
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -333,7 +350,7 @@ img {
 .body .row, .body .row-actions {
     margin-top: auto;
     display: flex;
-    gap: 10px
+    gap: 5px
 }
 
     .body .row .btn, .body .row-actions .btn {
@@ -342,14 +359,14 @@ img {
 
 /* ==================== BUTTONS ==================== */
 .btn {
-    padding: 0 16px;
+    padding: 0 13px;
     min-height: var(--control-h);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
 	background: var(--panel);
     color: var(--fg);
     font-weight: 700;
-    font-size: 14px;
+    font-size: 13px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -419,9 +436,9 @@ img {
 /* ==================== QUEUE ==================== */
 .queue {
     position: fixed;
-    right: 20px;
-    bottom: 20px;
-    width: min(560px,92vw);
+    right: 30px;
+    bottom: 30px;
+    width: min(560px,102vw);
      background: var(--panel);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -431,28 +448,28 @@ img {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 14px 16px;
+    padding:8px 20px;
     border-bottom: 1px solid var(--border)
 }
 
     .q-head h3 {
         margin: 0;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 700
     }
 
 .q-list {
     max-height: 46vh;
     overflow: auto;
-    padding: 6px;
+    padding: 15px;
 }
 
 .q-item {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 10px;
-    padding: 10px 12px;
-    margin: 6px 0;
+    gap: 15px;
+    padding: 5px 12px;
+    margin: 5px 0;
     background: var(--panel);
 	border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -465,16 +482,16 @@ img {
 }
 
 .q-sub {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--muted)
 }
 
 .bar {
     height: 7px;
-    background: #2a2a2a;
+    background: #414141;
     border-radius: var(--radius-sm);
     overflow: hidden;
-    margin-top: 5px;
+    margin-top: 10px;
 }
 
     .bar > i {

@@ -393,6 +393,7 @@ if(__busy===0){
         qPill.style.display='';
     }
 }
+}
 
 /* ===== tiny toast ===== */
 let toastTimer=null; function toast(msg){ let t=document.getElementById('cf_toast'); if(!t){ t=document.createElement('div'); t.id='cf_toast'; t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:#111a22;border:1px solid rgba(255,255,255,.08);box-shadow:0 10px 30px rgba(0,0,0,.35);padding:10px 14px;border-radius:12px;color:#e8eef6;font-weight:700;z-index:9999'; document.body.appendChild(t); } t.textContent=msg; t.style.opacity='1'; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{t.style.opacity='0'},1800); }
