@@ -9,6 +9,8 @@
   "actions.update": "Update",
   "actions.save": "Save",
   "actions.signout": "Sign out",
+  "actions.pause": "Pause",
+  "actions.resume": "Resume",
 
   "auth.status_checking": "Status: checking…",
   "auth.open": "signed in",

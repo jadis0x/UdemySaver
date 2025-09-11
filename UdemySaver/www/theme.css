@@ -1,21 +1,21 @@
 :root {
-    --bg: #141414;
-    --panel: #181818;
-    --fg: #f5f5f1;
-    --muted: #b3b3b3;
-    --acc: #3b82f6;
-    --accent-2: #2563eb;
-    --chip: #222;
-    --ok: #32d74b;
-    --warn: #ffd60a;
-    --err: #ff453a;
-    --border: rgba(255,255,255,.06);
-    --border-strong: rgba(255,255,255,.12);
-    --shadow: 0 30px 80px rgba(0,0,0,.65);
-    --radius: 14px;
-    --radius-sm: 10px;
-    --control-h: 36px;
-    --specular: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 35%);
+    --bg: #0f2d62;
+    --panel: rgba(255,255,255,.08);
+    --fg: #ffffff;
+    --muted: #d0e0ff;
+    --acc: #00a5e4;
+    --accent-2: #2dd4ff;
+    --chip: rgba(255,255,255,.18);
+    --ok: #38ef7d;
+    --warn: #ffe45e;
+    --err: #ff4b5c;
+    --border: rgba(255,255,255,.25);
+    --border-strong: rgba(255,255,255,.45);
+    --shadow: 0 30px 80px rgba(0,0,0,.45);
+    --radius: 20px;
+    --radius-sm: 14px;
+    --control-h: 40px;
+    --specular: linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,0) 35%);
 }
 
 * {
@@ -28,11 +28,39 @@ html, body {
 
 body {
     margin: 0;
-    background: var(--bg);
+    background: radial-gradient(circle at 20% 20%, #4fb5ff 0%, #0046b8 70%), radial-gradient(circle at 80% 120%, #80e1ff 0%, #001845 70%), var(--bg);
     color: var(--fg);
-    font: 15px/1.6 "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+     font: 15px/1.6 "Nunito", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+	position: relative;
+    overflow-x: hidden;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(255,255,255,.25) 1px, transparent 1px), radial-gradient(circle, rgba(255,255,255,.15) 1px, transparent 1px);
+    background-size: 60px 60px, 60px 60px;
+    background-position: 0 0, 30px 30px;
+    opacity: .15;
+    pointer-events: none;
+    animation: starsMove 60s linear infinite;
+}
+
+body::after {
+    content: "";
+    position: fixed;
+    inset: -10%;
+    background: radial-gradient(circle at 15% 15%, rgba(255,255,255,.15), transparent 60%), radial-gradient(circle at 85% 35%, rgba(0,173,255,.25), transparent 70%), radial-gradient(circle at 40% 80%, rgba(0,89,255,.2), transparent 60%);
+    filter: blur(60px);
+    pointer-events: none;
+}
+
+@keyframes starsMove {
+    from { transform: translateY(0); }
+    to { transform: translateY(-1000px); }
 }
 
 a {
@@ -51,7 +79,10 @@ img {
     z-index: 100;
     backdrop-filter: saturate(140%) blur(18px);
     background: linear-gradient(180deg, rgba(20,20,20,.9), rgba(20,20,20,.7));
+    backdrop-filter: saturate(180%) blur(18px);
+    background: linear-gradient(180deg, rgba(0,163,255,.9), rgba(0,87,183,.85));
     border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 12px rgba(0,163,255,.4);
 }
 
 .nav-in {
@@ -67,9 +98,12 @@ img {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 18px;
-    font-weight: 800;
-    letter-spacing: .2px;
+    font-size: 24px;
+    font-family: 'Fredoka One', cursive;
+    letter-spacing: .5px;
+    color: #fff;
+    text-shadow: 0 2px 4px rgba(0,0,0,.4);
+    position: relative;
 }
 
     .brand .dot {
@@ -77,7 +111,21 @@ img {
         height: 10px;
         border-radius: 50%;
         background: var(--acc);
-        display: inline-block
+        display: inline-block;
+        box-shadow: 0 0 10px var(--acc);
+    }
+	
+	.brand::after {
+        content: "";
+        position: absolute;
+        left: -12px;
+        top: -12px;
+        width: 40px;
+        height: 40px;
+        background: radial-gradient(circle, rgba(255,255,255,.35), rgba(0,163,255,0));
+        border-radius: 50%;
+        filter: blur(8px);
+        z-index: -1;
     }
 
 .grow {
@@ -201,9 +249,11 @@ img {
 
     .hero h1 {
         margin: 0;
-        font-size: 42px;
-        font-weight: 700;
-        letter-spacing: .2px
+        font-size: 48px;
+        font-family: 'Fredoka One', cursive;
+        letter-spacing: .5px;
+        color: #fff;
+        text-shadow: 0 3px 6px rgba(0,0,0,.45);
     }
 
 .muted {
@@ -239,6 +289,7 @@ img {
     box-shadow: var(--shadow);
     flex-direction: column;
     scroll-snap-align: start;
+	backdrop-filter: blur(8px) saturate(150%);
     transition: transform .22s ease, filter .2s ease, box-shadow .22s ease, border-color .22s ease;
 }
 
@@ -255,9 +306,9 @@ img {
 
     .card:hover {
         transform: translateY(-4px) scale(1.02);
-        box-shadow: 0 40px 110px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.05) inset;
+        box-shadow: 0 40px 110px rgba(0,163,255,.35), 0 0 0 1px rgba(255,255,255,.08) inset;
         border-color: var(--border-strong);
-        filter: saturate(1.08);
+        filter: saturate(1.15);
     }
 
 .thumb-wrap {
@@ -330,14 +381,14 @@ img {
 
 /* ==================== BUTTONS ==================== */
 .btn {
-    padding: 0 14px;
+    padding: 0 16px;
     min-height: var(--control-h);
-    border-radius: 12px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-    background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+    background: linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.05));
     color: #f2f6fb;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 14px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -361,11 +412,13 @@ img {
     }
 
     .btn.primary {
-        filter: brightness(1.05);
+        background: linear-gradient(90deg, var(--acc), var(--accent-2));
+        box-shadow: 0 4px 14px rgba(0,163,255,.4);
+        border-color: rgba(255,255,255,.35);
     }
 
         .btn.primary:hover {
-background: linear-gradient(180deg, rgba(229,9,20,1), rgba(229,9,20,.85));       
+		filter: brightness(1.1);
         }
 
     .btn.ghost {

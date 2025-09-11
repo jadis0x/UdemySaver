@@ -337,7 +337,7 @@ byCourse.set(c.course_id,{ course_id:c.course_id, title:c.title||'Course', done,
 }
 }
 if(Array.isArray(data.items)){
-const rank={downloading:3, failed:2, done:1, queued:0};
+const rank={downloading:4, failed:3, paused:2, queued:1, done:0};
 for(const it of data.items){
 const row = byCourse.get(it.course_id); if(!row) continue;
 const st=String(it.state||'').toLowerCase(), r=rank[st]??0;
@@ -366,18 +366,33 @@ if (row.state === 'downloading') sclass += ' loading';
 if (row.state === 'done')        sclass += ' ok';
 if (row.state === 'failed')      sclass += ' err';
 
+const btn = row.state === 'paused'
+    ? `<button class="btn sm" data-act="resume" data-cid="${row.course_id}">${t('actions.resume')}</button>`
+    : `<button class="btn sm" data-act="pause" data-cid="${row.course_id}">${t('actions.pause')}</button>`;
+
 
 return `
-<div class="q-item${row.state==='done' ? ' done' : ''}">
+<div class="q-item${row.state==='done' ? ' done' : ''}" data-cid="${row.course_id}">
 <div>
 <div class="q-title">${row.title}</div>
 <div class="q-sub">${sub}</div>
 <div class="bar"><i style="width:${pct}%"></i></div>
 </div>
+<div class="q-ctrl">${btn}</div>
 <div class="${sclass}">${row.state}</div>
 </div>`;
 }).join('');
 qList.innerHTML = rows;
+
+qList.querySelectorAll('button[data-act]').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    const cid=btn.getAttribute('data-cid');
+    const act=btn.getAttribute('data-act');
+    await fetch(`/queue/${act}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({course_id:Number(cid)})});
+    qTick(true);
+  });
+});
+
 }
 
 /* ===== tiny toast ===== */

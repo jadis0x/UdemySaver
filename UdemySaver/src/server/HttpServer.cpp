@@ -132,6 +132,26 @@ private:
 				return write(std::move(res));
 			}
 
+			if (req_.method() == http::verb::post && req_.target() == "/queue/pause") {
+				auto [st, body] = handler_->handleQueuePause(req_.body());
+				http::response<http::string_body> res{ st, req_.version() };
+				res.set(http::field::server, "beast");
+				res.set(http::field::content_type, "application/json");
+				res.body() = std::move(body);
+				res.prepare_payload();
+				return write(std::move(res));
+			}
+
+			if (req_.method() == http::verb::post && req_.target() == "/queue/resume") {
+				auto [st, body] = handler_->handleQueueResume(req_.body());
+				http::response<http::string_body> res{ st, req_.version() };
+				res.set(http::field::server, "beast");
+				res.set(http::field::content_type, "application/json");
+				res.body() = std::move(body);
+				res.prepare_payload();
+				return write(std::move(res));
+			}
+
 			// GET /api/lectures?courseId=&page=&page_size=
 			if (req_.method() == http::verb::get &&
 				(std::string(req_.target()).rfind("/lectures", 0) == 0 ||

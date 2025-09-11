@@ -719,6 +719,7 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleQueueLi
 			case S::Downloading:  return "downloading";
 			case S::Done:         return "done";
 			case S::Failed:       return "failed";
+			case S::Paused:       return "paused";
 		}
 		return "unknown";
 		};
@@ -777,6 +778,65 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleQueueLi
 	out["courses"] = courses;
 
 	return { boost::beast::http::status::ok, out.dump() };
+}
+
+std::pair<boost::beast::http::status, std::string> RequestHandler::handleQueuePause(const std::string& body)
+{
+	using status = boost::beast::http::status;
+	json out;
+	try {
+		json in = json::parse(body);
+		int course_id = in.value("course_id", 0);
+		if (!course_id) throw std::runtime_error("missing course_id");
+
+		{
+			std::lock_guard<std::mutex> lk(mtx_);
+			for (auto& q : queue_) {
+				if (q.course_id == course_id &&
+					q.state == Job::State::Queued) {
+					q.state = Job::State::Paused;
+				}
+			}
+		}
+
+		out["ok"] = true;
+		return { status::ok, out.dump() };
+	}
+	catch (const std::exception& e) {
+		out["ok"] = false;
+		out["error"] = e.what();
+		return { status::bad_request, out.dump() };
+	}
+}
+
+std::pair<boost::beast::http::status, std::string> RequestHandler::handleQueueResume(const std::string& body)
+{
+	using status = boost::beast::http::status;
+	json out;
+	try {
+		json in = json::parse(body);
+		int course_id = in.value("course_id", 0);
+		if (!course_id) throw std::runtime_error("missing course_id");
+
+		{
+			std::lock_guard<std::mutex> lk(mtx_);
+			for (auto& q : queue_) {
+				if (q.course_id == course_id &&
+					q.state == Job::State::Paused) {
+					q.state = Job::State::Queued;
+				}
+			}
+		}
+		cv_.notify_one();
+
+		out["ok"] = true;
+		return { status::ok, out.dump() };
+	}
+	catch (const std::exception& e) {
+		out["ok"] = false;
+		out["error"] = e.what();
+		return { status::bad_request, out.dump() };
+	}
 }
 
 std::pair<boost::beast::http::status, std::string> RequestHandler::handleReconcile(const std::string& target)

@@ -9,6 +9,8 @@
   "actions.update": "Güncelle",
   "actions.save": "Kaydet",
   "actions.signout": "Çıkış yap",
+  "actions.pause": "Durdur",
+  "actions.resume": "Devam et",
 
   "auth.status_checking": "Durum: kontrol ediliyor…",
   "auth.open": "oturum açık",

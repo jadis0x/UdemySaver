@@ -1,11 +1,17 @@
 ﻿# Add source to this project's executable.
-add_executable (UdemySaver 
+set (SOURCES 
     "src/main.cpp"
     "src/server/HttpServer.cpp"
     "src/server/HttpServer.h"
     "src/server/RequestHandler.h"
     "src/server/RequestHandler.cpp"
 )
+
+if (WIN32)
+    list(APPEND SOURCES "../resources/app.rc")
+endif()
+
+add_executable (UdemySaver ${SOURCES})
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET UdemySaver PROPERTY CXX_STANDARD 20)

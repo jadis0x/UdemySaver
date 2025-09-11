@@ -38,7 +38,7 @@ public:
 		int lecture_index = 0;
 		std::string lecture_title;
 
-		enum class State { Queued, Downloading, Done, Failed };
+		enum class State { Queued, Downloading, Done, Failed, Paused };
 		State state = State::Queued;
 
 		double progress = 0.0;
@@ -72,6 +72,10 @@ public:
 	std::pair<boost::beast::http::status, std::string> handleQueueAdd(const std::string& body);
 
 	std::pair<boost::beast::http::status, std::string> handleQueueList();
+
+	std::pair<boost::beast::http::status, std::string> handleQueuePause(const std::string& body);
+
+	std::pair<boost::beast::http::status, std::string> handleQueueResume(const std::string& body);
 
 	std::pair<boost::beast::http::status, std::string> handleReconcile(const std::string& target);
 
