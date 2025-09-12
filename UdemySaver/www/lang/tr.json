@@ -10,6 +10,8 @@
   "actions.signout": "Çıkış yap",
   "actions.pause": "Durdur",
   "actions.resume": "Devam et",
+  "actions.settings": "Ayarlar",
+  "actions.close": "Kapat",
 
   "auth.status_checking": "Durum: kontrol ediliyor…",
   "auth.open": "oturum açık",
@@ -43,5 +45,13 @@
 
   "grid.empty": "Bu sayfada kurs bulunamadı.",
   "quality.label": "Kalite: {q}",
-  "img.placeholder": "Görsel yok"
+  "img.placeholder": "Görsel yok",
+  "quality.highest": "En yüksek",
+  "quality.lowest": "En düşük",
+  "img.placeholder": "Görsel yok",
+  "options.subtitles": "Varsa altyazıları indir",
+  "options.assets": "Ek materyalleri indir",
+  "options.language": "Dil",
+  "options.quality": "Video kalitesi",
+  "settings.title": "Ayarlar"
 }

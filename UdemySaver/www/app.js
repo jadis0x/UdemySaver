@@ -43,6 +43,8 @@ const sb = document.getElementById('searchBox');
 if (sb) sb.setAttribute('title', t('search.title'));
 const pageInfo = document.getElementById('pageInfo');
 if(pageInfo && window.state){ pageInfo.textContent = t('pager.page_fmt', {page: state.page, total: Math.max(1, Math.ceil((state.total||0)/state.page_size))}); }
+const qp = document.getElementById('qualityPill');
+if(qp) qp.textContent = t('quality.label', {q: preferredQuality()});
 }
 
 /* ===== globals ===== */
@@ -51,6 +53,39 @@ const prevBtn = $('#prevBtn'), nextBtn = $('#nextBtn'), refreshBtn = $('#refresh
 const authWarn = $('#authWarn'), authPill = $('#auth-pill');
 const userbox = $('#userbox'), avatar = $('#avatar'), uname = $('#uname'), signOutBtn = $('#signOutBtn');
 const countInfo = $('#countInfo'), qInput = $('#q');
+const settingsBtn = $('#settingsBtn'), settingsPanel = $('#settingsPanel'), settingsCloseBtn = $('#settingsCloseBtn');
+const qualityPill = $('#qualityPill');
+const optSubs = $('#optSubs'), optAssets = $('#optAssets'), optQuality = $('#optQuality');
+let userOpts = {subs:false, assets:false};
+
+function loadOpts(){
+  try{ const j = JSON.parse(localStorage.getItem('cf_opts')||'{}'); userOpts.subs=!!j.subs; userOpts.assets=!!j.assets; }catch{}
+  if(optSubs) optSubs.checked = userOpts.subs;
+  if(optAssets) optAssets.checked = userOpts.assets;
+  if(optQuality) optQuality.value = preferredQuality();
+  updateQualityPill();
+}
+function saveOpts(){
+  userOpts.subs = !!(optSubs?.checked);
+  userOpts.assets = !!(optAssets?.checked);
+  localStorage.setItem('cf_opts', JSON.stringify(userOpts));
+  if(optQuality){
+    localStorage.setItem('cf_quality_pref', optQuality.value);
+    updateQualityPill();
+    toast(t('quality.label',{q:optQuality.value}));
+  }
+}
+
+function loadOpts(){
+  try{ const j = JSON.parse(localStorage.getItem('cf_opts')||'{}'); userOpts.subs=!!j.subs; userOpts.assets=!!j.assets; }catch{}
+  if(optSubs) optSubs.checked = userOpts.subs;
+  if(optAssets) optAssets.checked = userOpts.assets;
+}
+function saveOpts(){
+  userOpts.subs = !!(optSubs?.checked);
+  userOpts.assets = !!(optAssets?.checked);
+  localStorage.setItem('cf_opts', JSON.stringify(userOpts));
+}
 
 let state = { page:1, page_size:12, total:0, auth:false, items:[], filter:"" };
 
@@ -70,6 +105,7 @@ function clamp01(x){ return Math.max(0, Math.min(1, x)); }
 const pad3 = n => String(n).padStart(3,'0');
 const safe = s => (s||"").toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'-').replace(/-+/g,'-').replace(/^ -|-$/g,'').slice(0,60) || 'item';
 function preferredQuality(){ return localStorage.getItem('cf_quality_pref') || 'Highest'; }
+function updateQualityPill(){ if(qualityPill) qualityPill.textContent = t('quality.label', {q: preferredQuality()}); }
 
 /* ===== token save ===== */
 async function saveTokenFromUI(){
@@ -217,9 +253,12 @@ function hideBusy(){
 /* ===== quality toggle ===== */
 document.addEventListener('keydown', e=>{
 if(e.key.toLowerCase()==='f'){
-const opts=['Highest','480','360','Lowest'];
+const opts=['Highest','1080','720','480','360','Lowest'];
 const cur=preferredQuality(); const i=(opts.indexOf(cur)+1)%opts.length;
-localStorage.setItem('cf_quality_pref', opts[i]); toast(t('quality.label',{q:opts[i]}));
+localStorage.setItem('cf_quality_pref', opts[i]);
+if(optQuality) optQuality.value = opts[i];
+updateQualityPill();
+toast(t('quality.label',{q:opts[i]}));
 }
 });
 
@@ -263,51 +302,72 @@ return null;
 }
 
 /* ===== enqueue ===== */
-async function enqueueLecture(course, lecture, idxInCourse, pref="Highest"){
-const asset = lecture && lecture.asset;
-if(!asset || asset.asset_type!=='Video') return {skipped:true};
-const picked = pickVideoSource(asset, pref);
-if(!picked) return {skipped:true};
+async function enqueueLecture(course, lecture, idxInCourse, pref="Highest", opts={}){ 
+const asset = lecture && lecture.asset; 
+if(!asset || asset.asset_type!=='Video') return {skipped:true}; 
+const picked = pickVideoSource(asset, pref); 
+if(!picked) return {skipped:true}; 
 
-const payload = {
-url:picked.url,
-filename:`${pad3(idxInCourse)} - ${safe(lecture.title)}-${picked.label}.mp4`,
-course_id:course.id, course_title:course.title,
-section_index:lecture.section_index||0, section_title:lecture.section_title||'',
-lecture_index:idxInCourse, lecture_title:lecture.title||''
-};
-const r = await fetch('/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-const data = await r.json().catch(()=>({ok:false}));
-if(data.skipped && data.reason==='exists') toast(t('toast.exists',{title: lecture.title}));
-return data;
+const base = { 
+course_id:course.id, course_title:course.title, 
+section_index:lecture.section_index||0, section_title:lecture.section_title||'', 
+lecture_index:idxInCourse, lecture_title:lecture.title||'', 
+lecture_id: lecture.id 
+}; 
+
+const videoPayload = {...base, url:picked.url, filename:`${pad3(idxInCourse)} - ${safe(lecture.title)}-${picked.label}.mp4`}; 
+let r = await fetch('/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(videoPayload)}); 
+let data = await r.json().catch(()=>({ok:false})); 
+if(data.skipped && data.reason==='exists') toast(t('toast.exists',{title: lecture.title})); 
+
+if(opts.subs && Array.isArray(asset.captions)){ 
+for(const cap of asset.captions){ 
+const url = cap.url || cap.file || cap.src; if(!url) continue; 
+const lang = safe(cap.language || cap.label || 'sub'); 
+const ext = (url.split(/[#?]/)[0].split('.').pop()||'vtt'); 
+const p = {...base, url, filename:`${pad3(idxInCourse)} - ${safe(lecture.title)}.${lang}.${ext}`}; 
+await fetch('/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); 
+} 
+} 
+
+if(opts.assets && Array.isArray(lecture.supplementary_assets)){ 
+for(const a of lecture.supplementary_assets){ 
+const name = a.filename ? a.filename : `${safe(a.title||'asset')}`; 
+const p = {...base, filename:`${pad3(idxInCourse)} - ${safe(lecture.title)} - ${safe(name)}`, asset_id:a.id, url:''}; 
+await fetch('/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); 
+} 
+} 
+
+return data; 
 }
 
-async function queueWholeCourse(course, preference="Highest"){
-showBusy('queue.collecting');
-try{
-toast(t('toast.collecting',{title: course.title||'Course'}));
-let page=1, knownTotal=null, seen=0, added=0, skipped=0, exists=0;
-while(true){
-const j = await getJSON(`/lectures?course_id=${course.id}&page=${page}`);
-if(knownTotal==null) knownTotal = (j && Number.isFinite(j.count)) ? (j.count|0) : null;
-const chunk = Array.isArray(j.results) ? j.results : [];
-if(chunk.length===0) break;
-for(const lec of chunk){
-seen++; setBusyTextTextual(`${seen}/${knownTotal ?? '…'}`);
-if(!lec || !lec.asset || lec.asset.asset_type!=='Video'){ skipped++; continue; }
-const res = await enqueueLecture(course, lec, seen, preference);
-if(res && res.skipped && res.reason==='exists') exists++;
-else if(res && res.ok) added++;
-else skipped++;
-if(seen%8===0) qTick(true);
-}
-if(j.next) page++; else break;
-}
-qTick(true);
-toast(t('toast.added_summary', {added, seen, skipped, exists}));
-if(added===0 && exists>0 && skipped===0) toast(t('toast.course_done',{title: course.title}));
-ensureCourseSize(course.id, preference);
-} finally { hideBusy(); }
+async function queueWholeCourse(course, preference="Highest"){ 
+const opts = {subs: userOpts.subs, assets: userOpts.assets};
+showBusy('queue.collecting'); 
+try{ 
+toast(t('toast.collecting',{title: course.title||'Course'})); 
+let page=1, knownTotal=null, seen=0, added=0, skipped=0, exists=0; 
+while(true){ 
+const j = await getJSON(`/lectures?course_id=${course.id}&page=${page}`); 
+if(knownTotal==null) knownTotal = (j && Number.isFinite(j.count)) ? (j.count|0) : null; 
+const chunk = Array.isArray(j.results) ? j.results : []; 
+if(chunk.length===0) break; 
+for(const lec of chunk){ 
+seen++; setBusyTextTextual(`${seen}/${knownTotal ?? '…'}`); 
+if(!lec || !lec.asset || lec.asset.asset_type!=='Video'){ skipped++; continue; } 
+const res = await enqueueLecture(course, lec, seen, preference, opts); 
+if(res && res.skipped && res.reason==='exists') exists++; 
+else if(res && res.ok) added++; 
+else skipped++; 
+if(seen%8===0) qTick(true); 
+} 
+if(j.next) page++; else break; 
+} 
+qTick(true); 
+toast(t('toast.added_summary', {added, seen, skipped, exists})); 
+if(added===0 && exists>0 && skipped===0) toast(t('toast.course_done',{title: course.title})); 
+ensureCourseSize(course.id, preference); 
+} finally { hideBusy(); } 
 }
 
 /* ===== course total size (lazy) ===== */
@@ -404,6 +464,11 @@ if(nextBtn) nextBtn.addEventListener('click',()=>loadPage(state.page+1));
 if(refreshBtn) refreshBtn.addEventListener('click',()=>loadPage(state.page));
 if(qInput) qInput.addEventListener('input',()=>{ state.filter=qInput.value||''; renderGrid(); });
 if(signOutBtn) signOutBtn.addEventListener('click', signOut);
+if(settingsBtn && settingsPanel) settingsBtn.addEventListener('click', ()=>{ settingsPanel.style.display = (settingsPanel.style.display==='none' || settingsPanel.style.display==='') ? 'block' : 'none'; });
+if(settingsCloseBtn && settingsPanel) settingsCloseBtn.addEventListener('click', ()=>{ settingsPanel.style.display='none'; });
+if(optSubs) optSubs.addEventListener('change', saveOpts);
+if(optAssets) optAssets.addEventListener('change', saveOpts);
+if(optQuality) optQuality.addEventListener('change', saveOpts);
 
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) qTick(true); });
 window.addEventListener('load', ()=>{ const btn = document.getElementById('saveTokenBtn'); if(btn) btn.addEventListener('click', saveTokenFromUI); });

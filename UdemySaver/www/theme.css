@@ -110,8 +110,8 @@ img {
 }
 
 .support {
-        display: flex;
-    gap: 0;
+    display: flex;
+    gap: 8px;
     flex-wrap: nowrap;
     flex-direction: row;
     justify-content: center;
@@ -444,7 +444,38 @@ img {
     border: 1px solid var(--border)
 }
 
-/* ==================== QUEUE ==================== */
+/* ==================== SETTINGS PANEL ==================== */
+.settings-panel {
+    position: fixed;
+    top: 70px;
+    right: 30px;
+    width: min(360px, 96vw);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.s-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding:8px 20px;
+    border-bottom: 1px solid var(--border)
+}
+
+    .s-head h3 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700
+    }
+
+.s-body {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 .queue {
     position: fixed;
     right: 30px;

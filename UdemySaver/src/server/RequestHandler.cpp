@@ -570,7 +570,7 @@ RequestHandler::handleLectures(int course_id, int page, int page_size) {
 			<< "/api-2.0/courses/" << course_id
 			<< "/subscriber-curriculum-items/?page=" << page
 			<< "&page_size=" << page_size
-			<< "&fields[lecture]=asset,title,object_index,asset_type"
+			<< "&fields[lecture]=asset,title,object_index,asset_type,supplementary_assets"
 			<< "&fields[asset]=stream_urls,download_urls,captions,title,filename,hls_url,media_sources,asset_type"
 			<< "&fields[chapter]=title,object_index";
 
@@ -598,6 +598,8 @@ RequestHandler::handleLectures(int course_id, int page, int page_size) {
 					lec["id"] = it.value("id", 0);
 					lec["title"] = it.value("title", "");
 					if (it.contains("asset")) lec["asset"] = it["asset"];
+					if (it.contains("supplementary_assets"))
+						lec["supplementary_assets"] = it["supplementary_assets"];
 					lec["section_index"] = cur_section;
 					lec["section_title"] = cur_section_title;
 					lec["object_index"] = it.value("object_index", 0);
@@ -623,13 +625,23 @@ RequestHandler::handleQueueAdd(const std::string& body)
 	try {
 		json in = json::parse(body);
 
-		if (!in.contains("url") || !in["url"].is_string())
-			throw std::runtime_error("missing url");
+		int lecture_id = in.value("lecture_id", 0);
+		int asset_id = in.value("asset_id", 0);
+
+		std::string in_url = in.value("url", std::string{});
+		if (in_url.empty()) {
+			if (asset_id && in.value("course_id", 0) && lecture_id) {
+				in_url = resolve_supplementary_asset(in["course_id"].get<int>(), lecture_id, asset_id);
+			}
+			else {
+				throw std::runtime_error("missing url");
+			}
+		}
 
 		// ---- job ----
 		Job j;
 		j.id = next_id_++;
-		j.url = in["url"].get<std::string>();
+		j.url = in_url;
 		j.filename = in.value("filename", "");
 
 		j.course_id = in.value("course_id", 0);

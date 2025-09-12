@@ -10,6 +10,8 @@
   "actions.signout": "Sign out",
   "actions.pause": "Pause",
   "actions.resume": "Resume",
+  "actions.settings": "Settings",
+  "actions.close": "Close",
 
   "auth.status_checking": "Status: checking…",
   "auth.open": "signed in",
@@ -43,5 +45,13 @@
 
   "grid.empty": "No courses on this page.",
   "quality.label": "Quality: {q}",
-  "img.placeholder": "No image"
+  "img.placeholder": "No image",
+  "quality.highest": "Highest",
+  "quality.lowest": "Lowest",
+  "img.placeholder": "No image",
+  "options.subtitles": "Download subtitles when available",
+  "options.assets": "Download supplementary assets",
+  "options.language": "Language",
+  "options.quality": "Video quality",
+  "settings.title": "Settings"
 }

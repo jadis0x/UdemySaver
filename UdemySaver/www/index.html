@@ -14,26 +14,18 @@
     <!-- NAV -->
     <div class="nav">
         <div class="nav-in">
-			<div class="brand"><img src="www/assets/logo.png" alt="" class="logo">Lurid Lane Software | <b>UdemySaver</b></div>
-			<div class="support">
-                <a style="color: #77ebff; border: none !important;" class="btn ghost" href="https://www.buymeacoffee.com/jadis0x" target="_blank">Buy Me a Coffee</a>
-                <a style="color: #d9d933; border: none !important;" class="btn ghost" href="https://www.paypal.me/jadis0x" target="_blank">PayPal</a>
-            </div>
+			<div class="brand"><img src="www/assets/logo.png" alt="" class="logo">UdemySaver</div>
             <div class="grow"></div>
             <div class="search" id="searchBox">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke="#9aa6b2" stroke-width="2" stroke-linecap="round" /></svg>
                 <input id="q" placeholder="Search title..." />
             </div>
 
-            <select id="langSelect" class="pill lang-select">
-                <option value="en">EN</option>
-                <option value="tr">TR</option>
-            </select>
+			<button class="btn ghost" id="settingsBtn" data-i18n="actions.settings">Settings</button>
 
             <div class="user" id="userbox" style="display:none">
                 <img id="avatar" class="avatar" alt=""><span class="uname" id="uname"></span>
             </div>
-			<button class="btn ghost" id="signOutBtn" data-i18n="actions.signout" style="display:none">Sign out</button>
         </div>
     </div>
 
@@ -42,6 +34,7 @@
         <h1 data-i18n="library.title">Your Library</h1>
         <span class="muted" id="countInfo"></span>
         <div class="grow"></div>
+		
         <button class="btn primary" id="refreshBtn" data-i18n="actions.refresh">Refresh</button>
     </div>
 
@@ -67,6 +60,50 @@
             <button class="btn" id="nextBtn" data-i18n="pager.next">Next ›</button>
         </div>
     </div>
+	
+	
+	 <!-- SETTINGS -->
+    <div class="settings-panel" id="settingsPanel" style="display:none">
+        <div class="s-head">
+            <h3 data-i18n="settings.title">Settings</h3>
+            <div class="grow"></div>
+            <button class="btn ghost" id="settingsCloseBtn" data-i18n="actions.close">Close</button>
+        </div>
+        <div class="s-body">
+            <label style="display:flex;align-items:center;gap:6px;">
+                <span data-i18n="options.language">Language</span>
+                <select id="langSelect" class="lang-select">
+                    <option value="en">EN</option>
+                    <option value="tr">TR</option>
+                </select>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;">
+                <span data-i18n="options.quality">Video quality</span>
+                <select id="optQuality" class="lang-select">
+                    <option value="Highest" data-i18n="quality.highest">Highest</option>
+                    <option value="1080">1080p</option>
+                    <option value="720">720p</option>
+                    <option value="480">480p</option>
+                    <option value="360">360p</option>
+                    <option value="Lowest" data-i18n="quality.lowest">Lowest</option>
+                </select>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" id="optSubs" />
+                <span data-i18n="options.subtitles">Download subtitles when available</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" id="optAssets" />
+                <span data-i18n="options.assets">Download supplementary assets</span>
+            </label>
+            <div class="support" style="margin-top:10px;">
+                <a style="color: #77ebff; border: none !important;" class="btn ghost" href="https://www.buymeacoffee.com/jadis0x" target="_blank">Buy Me a Coffee</a>
+                <a style="color: #d9d933; border: none !important;" class="btn ghost" href="https://www.paypal.me/jadis0x" target="_blank">PayPal</a>
+            </div>
+            <button class="btn ghost" id="signOutBtn" data-i18n="actions.signout" style="margin-top:10px;">Sign out</button>
+        </div>
+    </div>
+	
 
     <!-- QUEUE -->
     <div class="queue" id="queue">
