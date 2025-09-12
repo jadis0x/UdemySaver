@@ -518,8 +518,8 @@ RequestHandler::handleCourses(int page, int page_size) {
 				j["id"] = c.value("id", 0);
 				j["title"] = c.value("title", "");
 				j["headline"] = c.value("headline", "");
-				j["url"] = abs;           
-				j["image"] = img;          
+				j["url"] = abs;
+				j["image"] = img;
 				j["image_raw"] = c.value("image_480x270", "");
 				if (c.contains("visible_instructors") &&
 					c["visible_instructors"].is_array() &&
@@ -757,8 +757,11 @@ RequestHandler::handleQueueAdd(const std::string& body)
 				return { status::ok, out2.dump() };
 			}
 
+			if (paused_courses_.find(j.course_id) != paused_courses_.end())
+				j.state = Job::State::Paused;
 			queue_.push_back(std::move(j));
 		}
+
 		cv_.notify_one();
 
 		out["ok"] = true;
@@ -860,6 +863,7 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleQueuePa
 
 		{
 			std::lock_guard<std::mutex> lk(mtx_);
+			paused_courses_.insert(course_id);
 			for (auto& q : queue_) {
 				if (q.course_id == course_id &&
 					q.state == Job::State::Queued) {
@@ -889,6 +893,7 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleQueueRe
 
 		{
 			std::lock_guard<std::mutex> lk(mtx_);
+			paused_courses_.erase(course_id);
 			for (auto& q : queue_) {
 				if (q.course_id == course_id &&
 					q.state == Job::State::Paused) {
@@ -1290,7 +1295,7 @@ void RequestHandler::worker_loop()
 			j.bytes_total = static_cast<long long>(dltotal);
 
 			double ts = now_sec();
-			const double dt = std::max(0.25, ts - last_ts.load()); 
+			const double dt = std::max(0.25, ts - last_ts.load());
 			long long db = j.bytes_now - last_bytes.load();
 			double inst = (double)db / dt; // B/s
 			if (j.speed_bps <= 0) j.speed_bps = inst;

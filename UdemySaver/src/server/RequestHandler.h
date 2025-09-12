@@ -8,6 +8,7 @@
 #include <functional>
 #include <unordered_map>
 #include <nlohmann/json.hpp>
+#include <unordered_set>
 
 struct HeaderProbe {
 	long long content_length = -1;       // Content-Length
@@ -130,4 +131,5 @@ private:
 	bool running_ = false;
 
 	std::unordered_map<int, CourseProgress> progress_;  // course_id -> progress
+	std::unordered_set<int> paused_courses_;
 };

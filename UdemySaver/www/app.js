@@ -72,9 +72,14 @@ function toggleCourseSelection(course, checked){
 }
 
 async function downloadSelected(){
+	const tasks = [];
+	
     for(const c of selectedCourses.values()){
-        await queueWholeCourse(c, preferredQuality());
+        tasks.push(queueWholeCourse(c, preferredQuality()));
     }
+	
+	await Promise.all(tasks);
+	
     selectedCourses.clear();
     updateSelectedUI();
     renderGrid();
