@@ -380,6 +380,7 @@ std::pair<status, std::string> RequestHandler::handleSession() {
 	catch (const std::exception& e) {
 		out["ok"] = false;
 		out["error"] = e.what();
+		out["auth"] = false;
 		return { status::bad_request, out.dump() };
 	}
 }
@@ -442,7 +443,10 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleSetting
 		return { status::ok, out.dump() };
 	}
 	catch (const std::exception& e) {
+		out["ok"] = false;
 		out["error"] = e.what();
+		out["auth"] = false;
+		out["courses"] = json::array();
 		return { status::bad_request, out.dump() };
 	}
 }
@@ -732,6 +736,27 @@ RequestHandler::handleQueueAdd(const std::string& body)
 
 		{
 			std::lock_guard<std::mutex> lk(mtx_);
+
+			auto dup = std::find_if(
+				queue_.begin(), queue_.end(),
+				[&](const Job& q) {
+					return (q.url == j.url ||
+							(q.out_path_dir == j.out_path_dir &&
+							q.filename == j.filename)) &&
+						q.state != Job::State::Done &&
+						q.state != Job::State::Failed;
+				});
+
+			if (dup != queue_.end()) {
+				json out2;
+				out2["ok"] = true;
+				out2["queued"] = false;
+				out2["skipped"] = true;
+				out2["reason"] = "queued";
+				out2["id"] = dup->id;
+				return { status::ok, out2.dump() };
+			}
+
 			queue_.push_back(std::move(j));
 		}
 		cv_.notify_one();

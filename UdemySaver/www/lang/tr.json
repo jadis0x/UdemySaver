@@ -12,6 +12,7 @@
   "actions.resume": "Devam et",
   "actions.settings": "Ayarlar",
   "actions.close": "Kapat",
+  "actions.download_selected": "Seçilenleri İndir",
 
   "auth.status_checking": "Durum: kontrol ediliyor…",
   "auth.open": "oturum açık",
@@ -39,6 +40,7 @@
   "queue.collecting": "toplanıyor…",
 
   "toast.exists": "Zaten var: {title}",
+  "toast.queued": "Zaten kuyrukta: {title}",
   "toast.collecting": "Toplanıyor: {title}",
   "toast.added_summary": "Kuyruğa eklendi: {added}/{seen} • atlanan:{skipped} • zaten var:{exists}",
   "toast.course_done": "Kurs zaten inmiş: {title}",

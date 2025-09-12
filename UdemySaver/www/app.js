@@ -50,6 +50,7 @@ if(qp) qp.textContent = t('quality.label', {q: preferredQuality()});
 /* ===== globals ===== */
 const grid = $('#grid'), pager = $('#pager'), pageInfo = $('#pageInfo');
 const prevBtn = $('#prevBtn'), nextBtn = $('#nextBtn'), refreshBtn = $('#refreshBtn');
+const downloadSelectedBtn = $('#downloadSelectedBtn');
 const authWarn = $('#authWarn'), authPill = $('#auth-pill');
 const userbox = $('#userbox'), avatar = $('#avatar'), uname = $('#uname'), signOutBtn = $('#signOutBtn');
 const countInfo = $('#countInfo'), qInput = $('#q');
@@ -57,6 +58,27 @@ const settingsBtn = $('#settingsBtn'), settingsPanel = $('#settingsPanel'), sett
 const qualityPill = $('#qualityPill');
 const optSubs = $('#optSubs'), optAssets = $('#optAssets'), optQuality = $('#optQuality');
 let userOpts = {subs:false, assets:false};
+const selectedCourses = new Map();
+
+function updateSelectedUI(){
+    if(downloadSelectedBtn)
+        downloadSelectedBtn.style.display = selectedCourses.size > 0 ? '' : 'none';
+}
+
+function toggleCourseSelection(course, checked){
+    if(checked) selectedCourses.set(course.id, course);
+    else selectedCourses.delete(course.id);
+    updateSelectedUI();
+}
+
+async function downloadSelected(){
+    for(const c of selectedCourses.values()){
+        await queueWholeCourse(c, preferredQuality());
+    }
+    selectedCourses.clear();
+    updateSelectedUI();
+    renderGrid();
+}
 
 function loadOpts(){
   if(optQuality){
@@ -196,6 +218,7 @@ const el = document.createElement('div');
 el.className = 'card';
 el.innerHTML = `
 <div class="thumb-wrap">
+<input type="checkbox" class="select-cb" data-id="${c.id}" ${selectedCourses.has(c.id)?'checked':''}>
 <img class="thumb" src="${imageOrPlaceholder(c.image)}" alt="">
 <span class="badge">#${c.id}</span>
 </div>
@@ -208,8 +231,11 @@ el.innerHTML = `
 </div>
 </div>`;
 el.querySelector('.btn.primary').addEventListener('click', ()=> queueWholeCourse(c, preferredQuality()));
+const cb = el.querySelector('.select-cb');
+if(cb) cb.addEventListener('change', ()=> toggleCourseSelection(c, cb.checked));
 grid.appendChild(el);
 }
+updateSelectedUI();
 }
 function renderPager(){
 if(!pager||!pageInfo) return;
@@ -325,8 +351,11 @@ lecture_id: lecture.id
 
 const videoPayload = {...base, url:picked.url, filename:`${pad3(idxInCourse)} - ${safe(lecture.title)}-${picked.label}.mp4`}; 
 let r = await fetch('/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(videoPayload)}); 
-let data = await r.json().catch(()=>({ok:false})); 
-if(data.skipped && data.reason==='exists') toast(t('toast.exists',{title: lecture.title})); 
+let data = await r.json().catch(()=>({ok:false}));
+if(data.skipped){
+    if(data.reason==='exists') toast(t('toast.exists',{title: lecture.title}));
+    else if(data.reason==='queued') toast(t('toast.queued',{title: lecture.title}));
+}
 
 if(opts.subs && Array.isArray(asset.captions)){ 
 for(const cap of asset.captions){ 
@@ -411,6 +440,10 @@ for(const it of data.items){
 const row = byCourse.get(it.course_id); if(!row) continue;
 const st=String(it.state||'').toLowerCase(), r=rank[st]??0;
 if(r>row._r){ row.state=st||'queued'; row._r=r; }
+if(st==='downloading'){
+const spd = (it.speed_bps||0) * 1024; // server reports KiB/s
+row.speed = (row.speed||0) + spd;
+}
 }
 }
 for(const row of byCourse.values()){
@@ -424,7 +457,8 @@ const rows = [...byCourse.values()].map(row=>{
 const pct = Math.round(clamp01(row.total? row.done/row.total : 0)*100) || row.pct || 0;
 const sz = __courseSize.get(row.course_id);
 const sizeTxt = sz && sz.bytes>0 ? ` • ${fmtBytes(sz.bytes)}` : '';
-const sub = `${row.done}/${row.total} • %${pct}${sizeTxt}`;
+const speedTxt = row.speed>0 ? ` • ${fmtBytes(row.speed)}/s` : '';
+const sub = `${row.done}/${row.total} • %${pct}${sizeTxt}${speedTxt}`;
 
 const btn = row.state === 'paused'
     ? `<button class="btn sm" data-act="resume" data-cid="${row.course_id}">${t('actions.resume')}</button>`
@@ -462,12 +496,13 @@ if(__busy===0){
     const run = $('#qRunning');
     if(run && qPill){
         let statusKey = 'queue.waiting';
+		let isDownloading = false;
         for(const row of byCourse.values()){
-            if(row.state==='downloading'){ statusKey='queue.downloading'; break; }
+            if(row.state==='downloading'){ statusKey='queue.downloading'; isDownloading=true; break; }
             if(row.state==='failed'){ statusKey='queue.failed'; break; }
             if(row.state==='paused'){ statusKey='queue.paused'; }
         }
-        run.textContent = t(statusKey);
+        run.innerHTML = isDownloading ? `<i class="spin"></i>${t(statusKey)}` : t(statusKey);
         qPill.style.display='';
     }
 }
@@ -480,6 +515,7 @@ let toastTimer=null; function toast(msg){ let t=document.getElementById('cf_toas
 if(prevBtn) prevBtn.addEventListener('click',()=>loadPage(state.page-1));
 if(nextBtn) nextBtn.addEventListener('click',()=>loadPage(state.page+1));
 if(refreshBtn) refreshBtn.addEventListener('click',()=>loadPage(state.page));
+if(downloadSelectedBtn) downloadSelectedBtn.addEventListener('click', downloadSelected);
 if(qInput) qInput.addEventListener('input',()=>{ state.filter=qInput.value||''; renderGrid(); });
 if(signOutBtn) signOutBtn.addEventListener('click', signOut);
 if(settingsBtn && settingsPanel) settingsBtn.addEventListener('click', ()=>{ settingsPanel.style.display = (settingsPanel.style.display==='none' || settingsPanel.style.display==='') ? 'block' : 'none'; });

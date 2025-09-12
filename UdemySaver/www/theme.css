@@ -95,7 +95,8 @@ img {
    display: flex;
     align-items: center;
     gap: 5px;
-    font-size: 13px;
+    font-size: 20px;
+	font-weight: bold;
     font-family: 'Inter', sans-serif;
     letter-spacing: .5px;
     color: var(--fg);
@@ -193,9 +194,9 @@ img {
     padding: 0 12px;
 	border-radius: var(--radius-sm);
     background: var(--panel);
-    color: var(--fg);
+    color: #959595;
     font-size: 12px;
-    border: 1px solid var(--border);
+    border: none;
 }
 
     .pill.btnlike {
@@ -329,6 +330,13 @@ img {
     backdrop-filter: blur(6px);
 }
 
+.select-cb {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+}
+
 .body {
     padding: 15px;
     display: flex;
@@ -412,6 +420,12 @@ img {
 
     .btn.ghost {
         background: transparent;
+        border: 1px solid var(--border)
+    }
+	
+	.btn.danger {
+        background: #5c0000;
+		color: #ff8c8c;
         border: 1px solid var(--border)
     }
 
@@ -544,8 +558,8 @@ img {
         display: block;
         height: 100%;
         width: 0;
-		background: var(--acc);
-        transition: width .3s ease;
+		background: #03aa03;
+        transition: width .8s ease;
     }
 
 

@@ -12,6 +12,7 @@
   "actions.resume": "Resume",
   "actions.settings": "Settings",
   "actions.close": "Close",
+  "actions.download_selected": "Download Selected",
 
   "auth.status_checking": "Status: checking…",
   "auth.open": "signed in",
@@ -39,6 +40,7 @@
   "queue.collecting": "collecting…",
 
   "toast.exists": "Already exists: {title}",
+  "toast.queued": "Already queued: {title}",
   "toast.collecting": "Collecting: {title}",
   "toast.added_summary": "Queued: {added}/{seen} • skipped:{skipped} • exists:{exists}",
   "toast.course_done": "Course already downloaded: {title}",
