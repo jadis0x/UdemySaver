@@ -9,8 +9,8 @@ It ships with a small HTTP server and a modern web UI so you can browse your lib
 - Cross-platform build via CMake.
 
 ## Showcase
-![Course library view](app_showcase/App_Screenshot_1.png)
-![Download queue view](app_showcase/App_Screenshot_2.png)
+![Course library view](app_showcase/App_Screenshot_2.png)
+![App Settings](app_showcase/App_Screenshot_1.png)
 
 # Requirements
 | Tool/Library           | Notes                     |
