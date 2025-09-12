@@ -385,6 +385,7 @@ if(url) break;
 }
 }
 }
+if(!url) continue;
 const p = {...base, filename:`${pad3(idxInCourse)} - ${safe(lecture.title)} - ${safe(name)}`, asset_id:a.id, url};
 await fetch('/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
 }
