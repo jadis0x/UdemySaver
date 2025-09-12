@@ -63,6 +63,10 @@ You can also start the program without a token and paste it via the web interfac
 4. Browse your library, choose a course, and click **Download**.
 5. Files are saved under a `downloads/` directory.
 
+## Demo Video
+[![UdemySaver Demo](https://img.youtube.com/vi/z6ltMWevtK4/0.jpg)](https://youtu.be/z6ltMWevtK4)
+
+
 ## Legal
 This tool is intended for downloading courses you have legally purchased.
 Respect Udemy's Terms of Service and local laws when using it.
