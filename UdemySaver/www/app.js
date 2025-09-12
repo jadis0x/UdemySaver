@@ -59,32 +59,30 @@ const optSubs = $('#optSubs'), optAssets = $('#optAssets'), optQuality = $('#opt
 let userOpts = {subs:false, assets:false};
 
 function loadOpts(){
-  try{ const j = JSON.parse(localStorage.getItem('cf_opts')||'{}'); userOpts.subs=!!j.subs; userOpts.assets=!!j.assets; }catch{}
-  if(optSubs) optSubs.checked = userOpts.subs;
-  if(optAssets) optAssets.checked = userOpts.assets;
-  if(optQuality) optQuality.value = preferredQuality();
-  updateQualityPill();
-}
-function saveOpts(){
-  userOpts.subs = !!(optSubs?.checked);
-  userOpts.assets = !!(optAssets?.checked);
-  localStorage.setItem('cf_opts', JSON.stringify(userOpts));
   if(optQuality){
-    localStorage.setItem('cf_quality_pref', optQuality.value);
+    optQuality.value = preferredQuality();
     updateQualityPill();
-    toast(t('quality.label',{q:optQuality.value}));
   }
 }
 
-function loadOpts(){
-  try{ const j = JSON.parse(localStorage.getItem('cf_opts')||'{}'); userOpts.subs=!!j.subs; userOpts.assets=!!j.assets; }catch{}
-  if(optSubs) optSubs.checked = userOpts.subs;
-  if(optAssets) optAssets.checked = userOpts.assets;
-}
-function saveOpts(){
-  userOpts.subs = !!(optSubs?.checked);
-  userOpts.assets = !!(optAssets?.checked);
-  localStorage.setItem('cf_opts', JSON.stringify(userOpts));
+async function saveOpts(){
+	userOpts.subs = !!(optSubs?.checked);
+	userOpts.assets = !!(optAssets?.checked);
+    let quality = preferredQuality();
+
+	if(optQuality){
+		quality = optQuality.value;
+		localStorage.setItem('cf_quality_pref', optQuality.value);
+	
+		updateQualityPill();
+		toast(t('quality.label',{q:quality}));
+	}
+	
+	await fetch('/settings', {
+		method:'POST',
+		headers:{'Content-Type':'application/json'},
+		body: JSON.stringify({ subs: userOpts.subs, assets: userOpts.assets, quality })
+  }).catch(()=>({}));
 }
 
 let state = { page:1, page_size:12, total:0, auth:false, items:[], filter:"" };
@@ -127,6 +125,12 @@ async function loadSession(){
 const data = await getJSON('/session');
 state.auth = !!data.auth;
 if (authPill) authPill.style.display = 'inline-flex';
+if(data.opts){
+  userOpts.subs = !!data.opts.subs;
+  userOpts.assets = !!data.opts.assets;
+  if(optSubs) optSubs.checked = userOpts.subs;
+  if(optAssets) optAssets.checked = userOpts.assets;
+}
 if(data.auth && data.user){
 if (authPill) authPill.textContent = t('auth.open');
 if (userbox) userbox.style.display = 'flex';

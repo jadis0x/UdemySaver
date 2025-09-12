@@ -256,10 +256,14 @@ void RequestHandler::load_settings() {
 			f << "udemy_access_token=\n";
 			f << "udemy_api_base=https://www.udemy.com\n";
 			f << "# http_proxy=\n";
+			f << "download_subtitles=true\n";
+			f << "download_assets=true\n";
 		}
 		token_.clear();
 		api_base_ = "https://www.udemy.com";
 		proxy_.clear();
+		download_subtitles_ = true;
+		download_assets_ = true;
 		return;
 	}
 
@@ -288,6 +292,18 @@ void RequestHandler::load_settings() {
 
 	if (kv.count("http_proxy")) proxy_ = kv["http_proxy"];
 	else if (kv.count("proxy")) proxy_ = kv["proxy"];
+
+	if (kv.count("download_subtitles")) {
+		std::string v = kv["download_subtitles"];
+		std::transform(v.begin(), v.end(), v.begin(), ::tolower);
+		download_subtitles_ = (v == "1" || v == "true" || v == "yes" || v == "on");
+	}
+
+	if (kv.count("download_assets")) {
+		std::string v = kv["download_assets"];
+		std::transform(v.begin(), v.end(), v.begin(), ::tolower);
+		download_assets_ = (v == "1" || v == "true" || v == "yes" || v == "on");
+	}
 }
 
 // ---------------- Udemy GET ----------------
@@ -345,6 +361,7 @@ std::pair<status, std::string> RequestHandler::handleSession() {
 	out["ok"] = true;
 	out["source"] = "settings";
 	out["auth"] = !token_.empty();
+	out["opts"] = { {"subs", download_subtitles_}, {"assets", download_assets_} };
 
 	if (token_.empty()) {
 		// not authenticated, but not an error
@@ -373,11 +390,19 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleSetting
 
 	try {
 		auto in = nlohmann::json::parse(body);
-		std::string new_token = in.value("udemy_access_token", std::string{});
-		std::string new_api = in.value("udemy_api_base", std::string{});
-		std::string new_proxy = in.value("http_proxy", std::string{});
 
-		// Basit temizlik
+		std::string new_token = token_;
+		std::string new_api = api_base_;
+		std::string new_proxy = proxy_;
+		bool new_subs = download_subtitles_;
+		bool new_assets = download_assets_;
+
+		if (in.contains("udemy_access_token")) new_token = in.value("udemy_access_token", std::string{});
+		if (in.contains("udemy_api_base"))    new_api = in.value("udemy_api_base", std::string{});
+		if (in.contains("http_proxy"))        new_proxy = in.value("http_proxy", std::string{});
+		if (in.contains("download_subtitles")) new_subs = in.value("download_subtitles", false);
+		if (in.contains("download_assets"))    new_assets = in.value("download_assets", false);
+
 		auto trim2 = [](std::string s) {
 			auto ws = [](int c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; };
 			while (!s.empty() && ws((unsigned char)s.front())) s.erase(s.begin());
@@ -387,6 +412,7 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleSetting
 		new_token = trim2(new_token);
 		new_api = trim2(new_api);
 		new_proxy = trim2(new_proxy);
+		if (new_api.empty()) new_api = "https://www.udemy.com";
 
 		{
 			std::ofstream f("settings.ini", std::ios::binary);
@@ -396,18 +422,22 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleSetting
 			}
 			f << "# UdemySaver settings\n";
 			f << "udemy_access_token=" << new_token << "\n";
-			f << "udemy_api_base=" << (new_api.empty() ? "https://www.udemy.com" : new_api) << "\n";
+			f << "udemy_api_base=" << new_api << "\n";
 			if (!new_proxy.empty()) f << "http_proxy=" << new_proxy << "\n";
+			f << "download_subtitles=" << (new_subs ? "true" : "false") << "\n";
+			f << "download_assets=" << (new_assets ? "true" : "false") << "\n";
 			f.flush();
 		}
 
-		token_.clear(); api_base_ = "https://www.udemy.com"; proxy_.clear();
-		if (!new_token.empty()) token_ = new_token;
-		if (!new_api.empty())   api_base_ = new_api;
-		if (!new_proxy.empty()) proxy_ = new_proxy;
+		token_ = new_token;
+		api_base_ = new_api;
+		proxy_ = new_proxy;
+		download_subtitles_ = new_subs;
+		download_assets_ = new_assets;
 
 		out["ok"] = true;
 		out["auth"] = !token_.empty();
+		out["opts"] = { {"subs", download_subtitles_}, {"assets", download_assets_} };
 		return { status::ok, out.dump() };
 	}
 	catch (const std::exception& e) {

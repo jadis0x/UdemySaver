@@ -117,6 +117,8 @@ private:
 	std::string token_;     // settings: udemy_access_token / access_token
 	std::string api_base_;  // settings: udemy_api_base (default https://www.udemy.com)
 	std::string proxy_;     // settings: http_proxy (optional)
+	bool download_subtitles_ = true; // settings: download_subtitles
+	bool download_assets_ = true; // settings: download_assets
 
 	// queue
 	std::mutex mtx_;

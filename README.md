@@ -25,9 +25,11 @@ It ships with a small HTTP server and a modern web UI so you can browse your lib
 Create a settings.ini alongside the executable:
 ```bash
 # UdemySaver settings
+# http_proxy=http://127.0.0.1:8080   ; optional
 udemy_access_token=PASTE_YOUR_TOKEN_HERE
 udemy_api_base=https://www.udemy.com
-# http_proxy=http://127.0.0.1:8080   ; optional
+download_subtitles=true
+download_assets=true   
 ```
 You can also start the program without a token and paste it via the web interface; the file will be created automatically.
 
