@@ -78,10 +78,14 @@ async function saveOpts(){
 		toast(t('quality.label',{q:quality}));
 	}
 	
-	await fetch('/settings', {
-		method:'POST',
-		headers:{'Content-Type':'application/json'},
-		body: JSON.stringify({ subs: userOpts.subs, assets: userOpts.assets, quality })
+	 await fetch('/settings', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({
+                        download_subtitles: userOpts.subs,
+                        download_assets: userOpts.assets,
+                        quality
+                })
   }).catch(()=>({}));
 }
 
