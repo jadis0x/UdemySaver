@@ -338,13 +338,23 @@ await fetch('/queue',{method:'POST',headers:{'Content-Type':'application/json'},
 } 
 } 
 
-if(opts.assets && Array.isArray(lecture.supplementary_assets)){ 
-for(const a of lecture.supplementary_assets){ 
-const name = a.filename ? a.filename : `${safe(a.title||'asset')}`; 
-const p = {...base, filename:`${pad3(idxInCourse)} - ${safe(lecture.title)} - ${safe(name)}`, asset_id:a.id, url:''}; 
-await fetch('/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); 
-} 
-} 
+if(opts.assets && Array.isArray(lecture.supplementary_assets)){
+for(const a of lecture.supplementary_assets){
+const name = a.filename ? a.filename : `${safe(a.title||'asset')}`;
+let url = '';
+if(a.download_urls){
+for(const k in a.download_urls){
+const arr = a.download_urls[k];
+if(Array.isArray(arr) && arr.length){
+url = arr[0].file || arr[0].url || '';
+if(url) break;
+}
+}
+}
+const p = {...base, filename:`${pad3(idxInCourse)} - ${safe(lecture.title)} - ${safe(name)}`, asset_id:a.id, url};
+await fetch('/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+}
+}
 
 return data; 
 }

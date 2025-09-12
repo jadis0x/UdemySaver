@@ -337,6 +337,7 @@ std::string RequestHandler::udemy_get(const std::string& url, long timeout_ms) {
 	hdr.list = curl_slist_append(hdr.list, auth.c_str());
 	hdr.list = curl_slist_append(hdr.list, "Accept: application/json, text/plain, */*");
 	hdr.list = curl_slist_append(hdr.list, "Referer: https://www.udemy.com/");
+	hdr.list = curl_slist_append(hdr.list, "Origin: https://www.udemy.com");
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdr.list);
 
 	CURLcode rc = curl_easy_perform(curl);
@@ -602,7 +603,8 @@ RequestHandler::handleLectures(int course_id, int page, int page_size) {
 			<< "&page_size=" << page_size
 			<< "&fields[lecture]=asset,title,object_index,asset_type,supplementary_assets"
 			<< "&fields[asset]=stream_urls,download_urls,captions,title,filename,hls_url,media_sources,asset_type"
-			<< "&fields[chapter]=title,object_index";
+			<< "&fields[chapter]=title,object_index"
+			<< "&fields[supplementary_asset]=id,title,asset_type,download_urls,external_url,filename";
 
 		auto body = udemy_get(url.str(), 20000);
 		nlohmann::json raw = nlohmann::json::parse(body);
@@ -1191,15 +1193,23 @@ std::string RequestHandler::resolve_supplementary_asset(int course_id, int lectu
 		<< "/api-2.0/users/me/subscribed-courses/" << course_id
 		<< "/lectures/" << lecture_id
 		<< "/supplementary-assets/" << asset_id
-		<< "?fields[asset]=download_urls,external_url,asset_type";
+		<< "?fields[supplementary_asset]=download_urls,external_url,asset_type,filename";
 
 	auto body = udemy_get(url.str(), 15000);
 	json j = json::parse(body);
-	if (!j.contains("asset")) throw std::runtime_error("no asset in supplementary");
 
-	auto& a = j["asset"];
-	if (a.contains("download_urls") && a["download_urls"].is_object()) {
-		for (auto& [k, arr] : a["download_urls"].items()) {
+	json* a = nullptr;
+	if (j.contains("asset") && j["asset"].is_object()) {
+		a = &j["asset"];
+	}
+	else if (j.is_object()) {
+		a = &j;
+	}
+
+	if (!a) throw std::runtime_error("no asset in supplementary");
+
+	if (a->contains("download_urls") && (*a)["download_urls"].is_object()) {
+		for (auto& [k, arr] : (*a)["download_urls"].items()) {
 			if (arr.is_array() && !arr.empty()) {
 				auto& first = arr[0];
 				if (first.contains("file") && first["file"].is_string())
@@ -1209,8 +1219,8 @@ std::string RequestHandler::resolve_supplementary_asset(int course_id, int lectu
 			}
 		}
 	}
-	if (a.contains("external_url") && a["external_url"].is_string())
-		return a["external_url"].get<std::string>();
+	if (a->contains("external_url") && (*a)["external_url"].is_string())
+		return (*a)["external_url"].get<std::string>();
 
 	throw std::runtime_error("no downloadable url in supplementary");
 }
