@@ -55,7 +55,6 @@ public:
 
 	// static files&helpers need this
 	const std::string& webroot() const noexcept { return webroot_; }
-	static std::string section_dir(int idx, const std::string& title);
 
 	// GET /session  -> returns user info if token exists in settings.ini
 	std::pair<boost::beast::http::status, std::string> handleSession();
@@ -83,7 +82,6 @@ public:
 	std::pair<boost::beast::http::status, std::string> handleEstimate(const std::string& target);
 
 	static size_t header_probe_cb(char* buffer, size_t size, size_t nitems, void* userdata);
-	static size_t write_discard(void* ptr, size_t size, size_t nmemb, void* userdata);
 	bool probe_content_length(const std::string& url,
 							  const std::vector<std::string>& headers,
 							  long long& out_bytes, std::string& err);

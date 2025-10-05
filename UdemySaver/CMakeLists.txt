@@ -11,11 +11,15 @@ if (WIN32)
     list(APPEND SOURCES "../resources/app.rc")
 endif()
 
-add_executable (UdemySaver ${SOURCES})
+add_executable (UdemySaver ${SOURCES} "utils/helper.h")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET UdemySaver PROPERTY CXX_STANDARD 20)
 endif()
+
+target_include_directories(UdemySaver PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils
+)
 
 # Curl
 find_package(CURL REQUIRED)

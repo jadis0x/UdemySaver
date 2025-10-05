@@ -19,10 +19,11 @@
 #include <map>
 #include <functional>
 #include <cstdio>
-#include <iomanip>    // <-- zpad
 #include <atomic>
 #include <cerrno>
-#include <cstring>
+
+// utils/helper
+#include "Helper.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -38,69 +39,6 @@ using json = nlohmann::json;
 
 struct CurlHandle { CURL* h = nullptr; CurlHandle() { h = curl_easy_init(); } ~CurlHandle() { if (h) curl_easy_cleanup(h); } };
 
-// ---------------- small helpers ----------------
-static FILE* xfopen(const char* path, const char* mode) {
-#ifdef _MSC_VER
-	FILE* fp = nullptr;
-	if (fopen_s(&fp, path, mode) != 0) return nullptr;
-	return fp;
-#else
-	return std::fopen(path, mode);
-#endif
-}
-
-static std::string slugify(const std::string& s) {
-	std::string out; out.reserve(s.size());
-	for (unsigned char c : s)
-	{
-		if (std::isalnum(c)) out.push_back((char) std::tolower(c));
-		else if (!out.empty() && out.back() != '-') out.push_back('-');
-	}
-	while (!out.empty() && out.back() == '-') out.pop_back();
-	if (out.empty()) out = "course";
-	return out;
-}
-
-static std::string ff_errstr(int err) {
-	char buf[AV_ERROR_MAX_STRING_SIZE];
-	av_strerror(err, buf, sizeof(buf));
-	return std::string(buf);
-}
-
-static std::string course_dir(int course_id, const std::string& title) {
-	std::ostringstream ss;
-	ss << "downloads/"
-		<< slugify(title) << "-" << course_id;
-	return ss.str();
-}
-
-std::string RequestHandler::trim(std::string s) {
-	auto ws = [](int c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; };
-	while (!s.empty() && ws(static_cast<unsigned char>(s.front()))) s.erase(s.begin());
-	while (!s.empty() && ws(static_cast<unsigned char>(s.back())))  s.pop_back();
-	return s;
-}
-
-std::string RequestHandler::read_file_utf8(const std::string& path) {
-	std::ifstream f(path, std::ios::binary);
-	if (!f) return {};
-	std::ostringstream ss; ss << f.rdbuf(); return ss.str();
-}
-
-static std::string zpad(int n, int width) {
-	std::ostringstream ss; ss << std::setw(width) << std::setfill('0') << n; return ss.str();
-}
-std::string RequestHandler::section_dir(int idx, const std::string& title) {
-	return zpad(idx, 2) + " - " + slugify(title);
-}
-
-static size_t write_to_string(void* ptr, size_t size, size_t nmemb, void* userdata) {
-	auto* s = reinterpret_cast<std::string*>(userdata);
-	size_t add = size * nmemb;
-	s->append(static_cast<char*>(ptr), add);
-	return add;
-}
-
 size_t RequestHandler::header_probe_cb(char* buffer, size_t size, size_t nitems, void* userdata) {
 	size_t total = size * nitems;
 	HeaderProbe* hp = reinterpret_cast<HeaderProbe*>(userdata);
@@ -112,7 +50,7 @@ size_t RequestHandler::header_probe_cb(char* buffer, size_t size, size_t nitems,
 	if (low.rfind(cl, 0) == 0)
 	{
 		std::string num = line.substr((int) cl.size());
-		try { hp->content_length = std::stoll(RequestHandler::trim(num)); }
+		try { hp->content_length = std::stoll(Helper::trim(num)); }
 		catch (...) { }
 	}
 
@@ -124,16 +62,13 @@ size_t RequestHandler::header_probe_cb(char* buffer, size_t size, size_t nitems,
 		if (slash != std::string::npos)
 		{
 			std::string total_s = line.substr(slash + 1);
-			try { hp->content_range_total = std::stoll(RequestHandler::trim(total_s)); }
+			try { hp->content_range_total = std::stoll(Helper::trim(total_s)); }
 			catch (...) { }
 		}
 	}
 	return total;
 }
 
-size_t RequestHandler::write_discard(void* ptr, size_t size, size_t nmemb, void*) {
-	return size * nmemb;
-}
 
 bool RequestHandler::probe_content_length(const std::string& url,
 										  const std::vector<std::string>& extra_headers,
@@ -172,7 +107,7 @@ bool RequestHandler::probe_content_length(const std::string& url,
 
 	hp = HeaderProbe {};
 	curl_easy_setopt(ch.h, CURLOPT_NOBODY, 0L);
-	curl_easy_setopt(ch.h, CURLOPT_WRITEFUNCTION, write_discard);
+	curl_easy_setopt(ch.h, CURLOPT_WRITEFUNCTION, Helper::write_discard);
 	curl_easy_setopt(ch.h, CURLOPT_RANGE, "0-0");
 	rc = curl_easy_perform(ch.h);
 
@@ -191,25 +126,20 @@ bool RequestHandler::probe_content_length(const std::string& url,
 std::string RequestHandler::pick_from_asset_for_size(const json& a, const std::string& pref) {
 	if (!a.is_object()) return {};
 
-	auto pick_preferred = [&](const std::map<int, std::string>& options) -> std::string
+	std::map<int, std::string> mp4_by_quality;
+	std::string fallback_mp4;
+	std::string hls_candidate;
+
+	auto register_mp4 = [&](const std::string& file, int quality)
 	{
-		if (options.empty()) return {};
-		if (pref == "Lowest") return options.begin()->second;
-		if (pref == "Highest") return options.rbegin()->second;
+		if (file.empty()) return;
+		if (fallback_mp4.empty()) fallback_mp4 = file;
+		if (quality > 0) mp4_by_quality[quality] = file;
+	};
 
-		std::string digits;
-		for (char c : pref) if (std::isdigit((unsigned char) c)) digits.push_back(c);
-		if (!digits.empty())
-		{
-			int want = std::stoi(digits);
-			auto it = options.find(want);
-			if (it != options.end()) return it->second;
-			auto it_up = options.lower_bound(want);
-			if (it_up != options.end()) return it_up->second;
-			return options.rbegin()->second;
-		}
-
-		return options.rbegin()->second;
+	auto consider_hls = [&](const std::string& src)
+	{
+		if (!src.empty() && hls_candidate.empty()) hls_candidate = src;
 	};
 
 	if (a.contains("download_urls") && a["download_urls"].is_object())
@@ -217,73 +147,108 @@ std::string RequestHandler::pick_from_asset_for_size(const json& a, const std::s
 		auto it = a["download_urls"].find("Video");
 		if (it != a["download_urls"].end() && it->is_array() && !it->empty())
 		{
-			std::map<int, std::string> files_by_quality;
-			std::string fallback;
 			for (auto& v : *it)
 			{
 				if (!v.contains("file") || !v["file"].is_string()) continue;
-
 				std::string file = v["file"].get<std::string>();
-				if (fallback.empty()) fallback = file;
-
-				std::string label = v.value("label", "");
-				std::string digits;
-				for (char c : label) if (std::isdigit((unsigned char) c)) digits.push_back(c);
-				int q = digits.empty() ? 0 : std::stoi(digits);
-				files_by_quality[q] = file;
+				int quality = Helper::extract_quality_value(v.value("label", ""));
+				register_mp4(file, quality);
 			}
-
-			if (!files_by_quality.empty())
-			{
-				auto picked = pick_preferred(files_by_quality);
-				if (!picked.empty()) return picked;
-			}
-
-			if (!fallback.empty()) return fallback;
 		}
 	}
+
 	if (a.contains("stream_urls") && a["stream_urls"].is_object())
 	{
 		auto it = a["stream_urls"].find("Video");
 		if (it != a["stream_urls"].end() && it->is_array())
 		{
-			std::map<int, std::string> mp4s;
-			std::string hls;
 			for (auto& v : *it)
 			{
 				std::string type = v.value("type", "");
 				std::string file = v.value("file", "");
-				std::string label = v.value("label", "");
-				if (type == "video/mp4" && !file.empty())
+				if (file.empty()) continue;
+
+				if (type == "video/mp4")
 				{
-					std::string digits; for (char c : label) if (std::isdigit((unsigned char) c)) digits.push_back(c);
-					int q = digits.empty() ? 0 : std::stoi(digits);
-					mp4s[q] = file;
+					int quality = Helper::extract_quality_value(v.value("label", ""));
+					register_mp4(file, quality);
 				}
-				else if (type == "application/x-mpegURL" && !file.empty())
+				else if (type == "application/x-mpegURL")
 				{
-					hls = file;
+					consider_hls(file);
 				}
 			}
-			if (!mp4s.empty())
-			{
-				auto picked = pick_preferred(mp4s);
-				if (!picked.empty()) return picked;
-			}
-			if (!hls.empty()) return hls;
 		}
 	}
-	// 3) hls_url
-	if (a.contains("hls_url") && a["hls_url"].is_string()) return a["hls_url"].get<std::string>();
-	// 4) media_sources
+
+	if (a.contains("hls_url") && a["hls_url"].is_string())
+	{
+		consider_hls(a["hls_url"].get<std::string>());
+	}
+
 	if (a.contains("media_sources") && a["media_sources"].is_array())
 	{
 		for (auto& m : a["media_sources"])
 		{
-			if (m.contains("src") && m["src"].is_string()) return m["src"].get<std::string>();
+			if (m.contains("src") && m["src"].is_string())
+			{
+				consider_hls(m["src"].get<std::string>());
+				if (!hls_candidate.empty()) break;
+			}
 		}
 	}
-	return {};
+
+	auto pick_preferred_mp4 = [&]() -> std::string
+	{
+		if (mp4_by_quality.empty())
+		{
+			return fallback_mp4;
+		}
+
+		if (pref == "Lowest") return mp4_by_quality.begin()->second;
+		if (pref == "Highest" || pref == "Auto") return mp4_by_quality.rbegin()->second;
+
+		int wanted = Helper::extract_quality_value(pref);
+		if (wanted > 0)
+		{
+			auto it = mp4_by_quality.find(wanted);
+			if (it != mp4_by_quality.end()) return it->second;
+			auto it_up = mp4_by_quality.lower_bound(wanted);
+			if (it_up != mp4_by_quality.end()) return it_up->second;
+			return mp4_by_quality.rbegin()->second;
+		}
+
+		return mp4_by_quality.rbegin()->second;
+	};
+
+	int highest_mp4_quality = mp4_by_quality.empty() ? 0 : mp4_by_quality.rbegin()->first;
+	bool prefer_hls = false;
+	if (!hls_candidate.empty())
+	{
+		if (pref == "Highest")
+		{
+			prefer_hls = true;
+		}
+		else
+		{
+			int wanted = Helper::extract_quality_value(pref);
+			if (wanted >= 1080)
+			{
+				prefer_hls = true;
+			}
+			else if (wanted > 0 && highest_mp4_quality > 0 && wanted > highest_mp4_quality)
+			{
+				prefer_hls = true;
+			}
+		}
+	}
+
+	if (prefer_hls) return hls_candidate;
+
+	std::string picked_mp4 = pick_preferred_mp4();
+	if (!picked_mp4.empty()) return picked_mp4;
+
+	return hls_candidate;
 }
 
 // ---------------- ctor / dtor ----------------
@@ -312,7 +277,7 @@ RequestHandler::~RequestHandler() {
 void RequestHandler::load_settings() {
 	std::unordered_map<std::string, std::string> kv;
 
-	std::string ini = read_file_utf8("settings.ini");
+	std::string ini = Helper::read_file_utf8("settings.ini");
 	if (ini.empty())
 	{
 		std::ofstream f("settings.ini");
@@ -337,12 +302,12 @@ void RequestHandler::load_settings() {
 	std::string line;
 	while (std::getline(is, line))
 	{
-		line = trim(line);
+		line = Helper::trim(line);
 		if (line.empty() || line[0] == '#' || line[0] == ';') continue;
 		auto pos = line.find('=');
 		if (pos == std::string::npos) continue;
-		auto key = trim(line.substr(0, pos));
-		auto val = trim(line.substr(pos + 1));
+		auto key = Helper::trim(line.substr(0, pos));
+		auto val = Helper::trim(line.substr(pos + 1));
 		if (!val.empty() && (val.front() == '"' || val.front() == '\''))
 		{
 			if (val.size() >= 2 && val.back() == val.front())
@@ -393,7 +358,7 @@ std::string RequestHandler::udemy_get(const std::string& url, long timeout_ms) {
 	curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, ""); // enable gzip/deflate
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout_ms);
 	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 8000L);
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_to_string);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, Helper::write_to_string);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
@@ -794,10 +759,10 @@ RequestHandler::handleQueueAdd(const std::string& body) {
 
 		if (j.course_id && !j.course_title.empty())
 		{
-			j.out_path_dir = course_dir(j.course_id, j.course_title);
+			j.out_path_dir = Helper::course_dir(j.course_id, j.course_title);
 			if (!j.section_title.empty() && j.section_index > 0)
 			{
-				j.out_path_dir += "/" + section_dir(j.section_index, j.section_title);
+				j.out_path_dir += "/" + Helper::section_dir(j.section_index, j.section_title);
 			}
 		}
 		else
@@ -807,8 +772,8 @@ RequestHandler::handleQueueAdd(const std::string& body) {
 
 		if (j.filename.empty())
 		{
-			std::string base = j.lecture_title.empty() ? "video" : slugify(j.lecture_title);
-			if (j.lecture_index > 0) base = zpad(j.lecture_index, 3) + " - " + base;
+			std::string base = j.lecture_title.empty() ? "video" : Helper::slugify(j.lecture_title);
+			if (j.lecture_index > 0) base = Helper::zpad(j.lecture_index, 3) + " - " + base;
 			j.filename = base + ".mp4";
 		}
 
@@ -1063,7 +1028,7 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleReconci
 		auto it = progress_.find(course_id);
 		if (it != progress_.end() && !it->second.title.empty())
 		{
-			dir = course_dir(course_id, it->second.title);
+			dir = Helper::course_dir(course_id, it->second.title);
 		}
 	}
 	if (dir.empty())
@@ -1216,7 +1181,7 @@ bool RequestHandler::curl_download_file(const std::string& url, const std::strin
 		if (!ec) already = static_cast<long long>(sz);
 	}
 
-	FILE* fp = xfopen(tmp_path.c_str(), already ? "ab" : "wb");
+	FILE* fp = Helper::xfopen(tmp_path.c_str(), already ? "ab" : "wb");
 	if (!fp) { msg = "cannot open file"; return false; }
 
 	CurlHandle ch;
@@ -1287,6 +1252,31 @@ bool RequestHandler::ffmpeg_download_hls(const std::string& url, const std::stri
 	AVFormatContext* out_ctx = nullptr;
 	AVDictionary* in_opts = nullptr;
 
+	auto last_progress = std::chrono::steady_clock::now();
+	const std::chrono::milliseconds progress_interval(350);
+	long long estimated_total_bytes = 0;
+	long long bytes_written = 0;
+
+	auto report_progress = [&](bool force = false)
+	{
+		if (!on_progress) return;
+		auto now = std::chrono::steady_clock::now();
+		if (!force && now - last_progress < progress_interval) return;
+		last_progress = now;
+
+		double total = static_cast<double>(estimated_total_bytes);
+		double current = static_cast<double>(bytes_written);
+		if (total > 0.0)
+		{
+			if (current > total) current = total;
+			on_progress(current, total);
+		}
+		else
+		{
+			on_progress(current, 0.0);
+		}
+	};
+
 	auto cleanup_ctx = [&]()
 	{
 		if (in_ctx)
@@ -1323,13 +1313,18 @@ bool RequestHandler::ffmpeg_download_hls(const std::string& url, const std::stri
 		}
 		av_dict_set(&in_opts, "headers", header_block.c_str(), 0);
 	}
+	av_dict_set(&in_opts, "user_agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0", 0);
+	if (!proxy_.empty())
+	{
+		av_dict_set(&in_opts, "http_proxy", proxy_.c_str(), 0);
+	}
 
 	int ret = avformat_open_input(&in_ctx, url.c_str(), nullptr, &in_opts);
 	if (ret < 0)
 	{
 		cleanup_ctx();
 		cleanup_tmp();
-		msg = "avformat_open_input failed: " + ff_errstr(ret);
+		msg = "avformat_open_input failed: " + Helper::ff_errstr(ret);
 		return false;
 	}
 
@@ -1338,9 +1333,27 @@ bool RequestHandler::ffmpeg_download_hls(const std::string& url, const std::stri
 	{
 		cleanup_ctx();
 		cleanup_tmp();
-		msg = "avformat_find_stream_info failed: " + ff_errstr(ret);
+		msg = "avformat_find_stream_info failed: " + Helper::ff_errstr(ret);
 		return false;
 	}
+
+	double duration_seconds = (in_ctx->duration > 0) ? (double) in_ctx->duration / AV_TIME_BASE : 0.0;
+	double bitrate_total = (in_ctx->bit_rate > 0) ? (double) in_ctx->bit_rate : 0.0;
+	if (bitrate_total <= 0.0)
+	{
+		for (unsigned int i = 0; i < in_ctx->nb_streams; ++i)
+		{
+			auto* st = in_ctx->streams[i];
+			if (st && st->codecpar && st->codecpar->bit_rate > 0)
+				bitrate_total += (double) st->codecpar->bit_rate;
+		}
+	}
+	if (bitrate_total > 0.0 && duration_seconds > 0.0)
+	{
+		estimated_total_bytes = static_cast<long long>((bitrate_total / 8.0) * duration_seconds);
+	}
+
+	report_progress(true);
 
 	ret = avformat_alloc_output_context2(&out_ctx, nullptr, "mp4", tmp_path.c_str());
 	if (ret < 0 || !out_ctx)
@@ -1348,7 +1361,7 @@ bool RequestHandler::ffmpeg_download_hls(const std::string& url, const std::stri
 		int err = ret < 0 ? ret : AVERROR_UNKNOWN;
 		cleanup_ctx();
 		cleanup_tmp();
-		msg = "avformat_alloc_output_context2 failed: " + ff_errstr(err);
+		msg = "avformat_alloc_output_context2 failed: " + Helper::ff_errstr(err);
 		return false;
 	}
 
@@ -1369,7 +1382,7 @@ bool RequestHandler::ffmpeg_download_hls(const std::string& url, const std::stri
 		{
 			cleanup_ctx();
 			cleanup_tmp();
-			msg = "avcodec_parameters_copy failed: " + ff_errstr(ret);
+			msg = "avcodec_parameters_copy failed: " + Helper::ff_errstr(ret);
 			return false;
 		}
 		out_stream->codecpar->codec_tag = 0;
@@ -1386,7 +1399,7 @@ bool RequestHandler::ffmpeg_download_hls(const std::string& url, const std::stri
 		{
 			cleanup_ctx();
 			cleanup_tmp();
-			msg = "avio_open failed: " + ff_errstr(ret);
+			msg = "avio_open failed: " + Helper::ff_errstr(ret);
 			return false;
 		}
 	}
@@ -1396,11 +1409,9 @@ bool RequestHandler::ffmpeg_download_hls(const std::string& url, const std::stri
 	{
 		cleanup_ctx();
 		cleanup_tmp();
-		msg = "avformat_write_header failed: " + ff_errstr(ret);
+		msg = "avformat_write_header failed: " + Helper::ff_errstr(ret);
 		return false;
 	}
-
-	if (on_progress) on_progress(0.0, 1.0);
 
 	AVPacket pkt;
 	av_init_packet(&pkt);
@@ -1418,7 +1429,7 @@ bool RequestHandler::ffmpeg_download_hls(const std::string& url, const std::stri
 			av_packet_unref(&pkt);
 			cleanup_ctx();
 			cleanup_tmp();
-			msg = "av_read_frame failed: " + ff_errstr(ret);
+			msg = "av_read_frame failed: " + Helper::ff_errstr(ret);
 			return false;
 		}
 		AVStream* in_stream = in_ctx->streams[pkt.stream_index];
@@ -1441,23 +1452,32 @@ bool RequestHandler::ffmpeg_download_hls(const std::string& url, const std::stri
 		pkt.pos = -1;
 
 		ret = av_interleaved_write_frame(out_ctx, &pkt);
+		if (ret >= 0 && pkt.size > 0)
+			bytes_written += pkt.size;
 		av_packet_unref(&pkt);
 		if (ret < 0)
 		{
 			cleanup_ctx();
 			cleanup_tmp();
-			msg = "av_interleaved_write_frame failed: " + ff_errstr(ret);
+			msg = "av_interleaved_write_frame failed: " + Helper::ff_errstr(ret);
 			return false;
 		}
+
+		report_progress();
 	}
 	av_packet_unref(&pkt);
+
+	if (out_ctx && out_ctx->pb)
+	{
+		avio_flush(out_ctx->pb);
+	}
 
 	ret = av_write_trailer(out_ctx);
 	if (ret < 0)
 	{
 		cleanup_ctx();
 		cleanup_tmp();
-		msg = "av_write_trailer failed: " + ff_errstr(ret);
+		msg = "av_write_trailer failed: " + Helper::ff_errstr(ret);
 		return false;
 	}
 
@@ -1472,7 +1492,24 @@ bool RequestHandler::ffmpeg_download_hls(const std::string& url, const std::stri
 		return false;
 	}
 
-	if (on_progress) on_progress(1.0, 1.0);
+	if (on_progress)
+	{
+		std::error_code fec;
+		auto final_size = std::filesystem::file_size(out_path, fec);
+		if (!fec && final_size > 0)
+		{
+			estimated_total_bytes = static_cast<long long>(final_size);
+			on_progress(static_cast<double>(final_size), static_cast<double>(final_size));
+		}
+		else if (estimated_total_bytes > 0)
+		{
+			on_progress(static_cast<double>(estimated_total_bytes), static_cast<double>(estimated_total_bytes));
+		}
+		else
+		{
+			on_progress(1.0, 1.0);
+		}
+	}
 	return true;
 }
 
@@ -1498,51 +1535,111 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 		{
 			std::map<int, std::string> qmap;
 			std::string autoSrc;
+			std::string hlsSrc;
 
 			for (auto& v : su["Video"])
 			{
 				if (!v.contains("file")) continue;
 				std::string file = v["file"].get<std::string>();
-				std::string label = v.value("label", "Auto");
+				if (file.empty()) continue;
 
-				if (label == "Auto")
+				std::string label = v.value("label", "");
+				std::string type = v.value("type", "");
+
+				bool is_hls = (type == "application/x-mpegURL") || label == "Auto";
+				if (is_hls)
 				{
-					autoSrc = file;
+					if (hlsSrc.empty()) hlsSrc = file;
+					if (autoSrc.empty()) autoSrc = file;
 					continue;
 				}
-				std::string digits;
-				for (char c : label) if (std::isdigit((unsigned char) c)) digits.push_back(c);
-				if (!digits.empty())
+
+				int q = Helper::extract_quality_value(label);
+				if (q > 0)
 				{
-					int q = std::stoi(digits);
 					qmap[q] = file;
+				}
+				else if (autoSrc.empty())
+				{
+					autoSrc = file;
 				}
 			}
 
-			auto pick = [&](const std::string& pref)->std::string
+			if (a.contains("hls_url") && a["hls_url"].is_string() && hlsSrc.empty())
 			{
-				if (pref == "Auto" && !autoSrc.empty()) return autoSrc;
-				if (qmap.empty()) return autoSrc.empty() ? "" : autoSrc;
+				hlsSrc = a["hls_url"].get<std::string>();
+			}
 
-				if (pref == "Highest") return qmap.rbegin()->second;
-				if (pref == "Lowest")  return qmap.begin()->second;
-
-				std::string digits;
-				for (char c : pref) if (std::isdigit((unsigned char) c)) digits.push_back(c);
-				if (!digits.empty())
+			if (hlsSrc.empty() && a.contains("media_sources") && a["media_sources"].is_array())
+			{
+				for (auto& m : a["media_sources"])
 				{
-					int want = std::stoi(digits);
-					auto it = qmap.find(want);
+					if (m.contains("src") && m["src"].is_string())
+					{
+						hlsSrc = m["src"].get<std::string>();
+						if (!hlsSrc.empty()) break;
+					}
+				}
+			}
+
+			int highest_mp4 = qmap.empty() ? 0 : qmap.rbegin()->first;
+			bool prefer_hls = false;
+			if (!hlsSrc.empty())
+			{
+				if (prefer_quality == "Highest")
+				{
+					prefer_hls = true;
+				}
+				else
+				{
+					int wanted = Helper::extract_quality_value(prefer_quality);
+					if (wanted >= 1080)
+					{
+						prefer_hls = true;
+					}
+					else if (wanted > 0 && highest_mp4 > 0 && wanted > highest_mp4)
+					{
+						prefer_hls = true;
+					}
+				}
+			}
+
+			if (prefer_hls) return hlsSrc;
+
+			if (prefer_quality == "Auto")
+			{
+				if (!autoSrc.empty()) return autoSrc;
+				if (!qmap.empty()) return qmap.rbegin()->second;
+				if (!hlsSrc.empty()) return hlsSrc;
+			}
+
+			if (prefer_quality == "Lowest")
+			{
+				if (!qmap.empty()) return qmap.begin()->second;
+				if (!autoSrc.empty()) return autoSrc;
+				if (!hlsSrc.empty()) return hlsSrc;
+			}
+
+			if (!qmap.empty())
+			{
+				if (prefer_quality == "Highest")
+					return qmap.rbegin()->second;
+
+				int wanted = Helper::extract_quality_value(prefer_quality);
+				if (wanted > 0)
+				{
+					auto it = qmap.find(wanted);
 					if (it != qmap.end()) return it->second;
-					auto it_up = qmap.lower_bound(want);
+					auto it_up = qmap.lower_bound(wanted);
 					if (it_up != qmap.end()) return it_up->second;
 					return qmap.rbegin()->second;
 				}
-				return qmap.rbegin()->second;
-			};
 
-			std::string src = pick(prefer_quality);
-			if (!src.empty()) return src;
+				return qmap.rbegin()->second;
+			}
+
+			if (!autoSrc.empty()) return autoSrc;
+			if (!hlsSrc.empty()) return hlsSrc;
 		}
 	}
 
@@ -1676,7 +1773,7 @@ void RequestHandler::worker_loop() {
 			std::error_code ed;
 			std::filesystem::create_directories(out_dir, ed);
 
-			std::string msg;
+			std::string msg = "";
 			bool ok = false;
 			std::string lower_url = j.url;
 			std::transform(lower_url.begin(), lower_url.end(), lower_url.begin(), [](unsigned char c) { return (char) std::tolower(c); });
