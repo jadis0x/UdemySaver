@@ -96,6 +96,12 @@ public:
 							std::function<void(double, double)> on_progress,
 							std::string& msg);
 
+	bool ffmpeg_download_hls(const std::string& url,
+							 const std::string& out_path,
+							 const std::vector<std::string>& extra_headers,
+							 std::function<void(double, double)> on_progress,
+							 std::string& msg);
+
 private:
 	// settings
 	void load_settings();

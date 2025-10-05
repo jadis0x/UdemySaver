@@ -29,6 +29,12 @@ target_link_libraries(UdemySaver PRIVATE Boost::system Boost::thread)
 find_package(nlohmann_json CONFIG REQUIRED)
 target_link_libraries(UdemySaver PRIVATE nlohmann_json::nlohmann_json)
 
+find_package(FFMPEG REQUIRED)
+target_include_directories(UdemySaver PRIVATE ${FFMPEG_INCLUDE_DIRS})
+target_link_directories(UdemySaver PRIVATE ${FFMPEG_LIBRARY_DIRS})
+target_link_libraries(UdemySaver PRIVATE ${FFMPEG_LIBRARIES})
+
+
 set(WEB_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/www)
 file(MAKE_DIRECTORY ${WEB_ROOT})
 
