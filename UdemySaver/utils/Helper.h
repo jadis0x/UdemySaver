@@ -2,6 +2,7 @@
 #include <iomanip> 
 #include <fstream>
 #include <sstream>
+#include <cctype>
 
 extern "C" {
 #include <libavutil/error.h>
@@ -20,15 +21,84 @@ namespace Helper
 	}
 
 	inline std::string slugify(const std::string& s) {
-		std::string out; out.reserve(s.size());
-		for (unsigned char c : s)
-		{
-			if (std::isalnum(c)) out.push_back((char) std::tolower(c));
-			else if (!out.empty() && out.back() != '-') out.push_back('-');
-		}
-		while (!out.empty() && out.back() == '-') out.pop_back();
-		if (out.empty()) out = "course";
-		return out;
+        std::string out;
+        out.reserve(s.size());
+
+        auto push_dash = [&]()
+        {
+            if (!out.empty() && out.back() != '-') out.push_back('-');
+        };
+
+        for (std::size_t i = 0; i < s.size();)
+        {
+            unsigned char c = static_cast<unsigned char>(s[i]);
+            if (c < 0x80)
+            {
+                if (std::isalnum(c))
+                {
+                    out.push_back(static_cast<char>(std::tolower(c)));
+                }
+                else
+                {
+                    push_dash();
+                }
+                ++i;
+                continue;
+            }
+
+            std::size_t len = 1;
+            if ((c & 0xE0u) == 0xC0u) len = 2;
+            else if ((c & 0xF0u) == 0xE0u) len = 3;
+            else if ((c & 0xF8u) == 0xF0u) len = 4;
+
+            if (i + len > s.size()) break;
+
+            bool valid = true;
+            for (std::size_t k = 1; k < len; ++k)
+            {
+                unsigned char cc = static_cast<unsigned char>(s[i + k]);
+                if ((cc & 0xC0u) != 0x80u)
+                {
+                    valid = false;
+                    break;
+                }
+            }
+
+            if (valid)
+            {
+                out.append(s, i, len);
+                i += len;
+            }
+            else
+            {
+                ++i;
+            }
+        }
+
+        if (!out.empty())
+        {
+            auto first = out.find_first_not_of('-');
+            if (first == std::string::npos)
+            {
+                out.clear();
+            }
+            else if (first > 0)
+            {
+                out.erase(0, first);
+            }
+        }
+
+        if (!out.empty())
+        {
+            auto last = out.find_last_not_of('-');
+            if (last != std::string::npos && last + 1 < out.size())
+            {
+                out.erase(last + 1);
+            }
+        }
+
+        if (out.empty()) out = "course";
+        return out;
 	}
 
 	inline std::string ff_errstr(int err) {

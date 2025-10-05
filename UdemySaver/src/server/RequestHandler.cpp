@@ -805,7 +805,11 @@ RequestHandler::handleQueueAdd(const std::string& body) {
 		j.headers.push_back("User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0");
 		j.headers.push_back("Referer: https://www.udemy.com/");
 		j.headers.push_back("Origin: https://www.udemy.com");
-		if (!token_.empty()) j.headers.push_back(std::string("Authorization: Bearer ") + token_);
+		if (!token_.empty())
+		{
+			j.headers.push_back(std::string("Authorization: Bearer ") + token_);
+			j.headers.push_back(std::string("Cookie: access_token=") + token_ + ";");
+		}
 		if (in.contains("headers") && in["headers"].is_array())
 			for (auto& h : in["headers"]) if (h.is_string()) j.headers.push_back(h.get<std::string>());
 
@@ -1310,6 +1314,10 @@ bool RequestHandler::ffmpeg_download_hls(const std::string& url, const std::stri
 			{
 				header_block += "\r\n";
 			}
+		}
+		if (!header_block.empty() && (header_block.back() != '\n' || header_block.size() < 2 || header_block[header_block.size() - 2] != '\r'))
+		{
+			header_block += "\r\n";
 		}
 		av_dict_set(&in_opts, "headers", header_block.c_str(), 0);
 	}
