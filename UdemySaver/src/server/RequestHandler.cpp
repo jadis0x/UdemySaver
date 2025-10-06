@@ -668,8 +668,8 @@ RequestHandler::handleLectures(int course_id, int page, int page_size) {
 			<< "/api-2.0/courses/" << course_id
 			<< "/subscriber-curriculum-items/?page=" << page
 			<< "&page_size=" << page_size
-			<< "&fields[lecture]=asset,title,object_index,asset_type,supplementary_assets"
-			<< "&fields[asset]=stream_urls,download_urls,captions,title,filename,hls_url,media_sources,asset_type"
+			<< "&fields[lecture]=asset,title,object_index,asset_type,supplementary_assets,description,download_url,is_free,last_watched_second"
+			<< "&fields[asset]=stream_urls,download_urls,download_url,captions,title,filename,data,body,hls_url,media_sources,asset_type,length,media_license_token,course_is_drmed,thumbnail_sprite,slides,slide_urls,external_url"
 			<< "&fields[chapter]=title,object_index"
 			<< "&fields[supplementary_asset]=id,title,asset_type,download_urls,external_url,filename";
 
@@ -1104,8 +1104,8 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleEstimat
 				<< "/api-2.0/courses/" << course_id
 				<< "/subscriber-curriculum-items/?page=" << page
 				<< "&page_size=200"
-				<< "&fields[lecture]=asset,title,object_index,asset_type"
-				<< "&fields[asset]=stream_urls,download_urls,filename,title,hls_url,media_sources,asset_type"
+				<< "&fields[lecture]=asset,title,object_index,asset_type,description,download_url,is_free,last_watched_second"
+				<< "&fields[asset]=stream_urls,download_urls,download_url,filename,title,hls_url,media_sources,asset_type,length,media_license_token,course_is_drmed,thumbnail_sprite,slides,slide_urls,external_url"
 				<< "&fields[chapter]=title,object_index";
 
 			auto body = udemy_get(url.str(), 20000);
@@ -1246,8 +1246,8 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 	url << api_base_
 		<< "/api-2.0/users/me/subscribed-courses/" << course_id
 		<< "/lectures/" << lecture_id
-		<< "?fields[asset]=stream_urls,download_urls,captions,title,filename,data,body,hls_url,media_sources,asset_type"
-		<< "&fields[lecture]=asset,supplementary_assets";
+		<< "?fields[asset]=stream_urls,download_urls,download_url,captions,title,filename,data,body,hls_url,media_sources,asset_type,length,media_license_token,course_is_drmed,thumbnail_sprite,slides,slide_urls,external_url"
+		<< "&fields[lecture]=asset,supplementary_assets,description,download_url,is_free,last_watched_second";
 
 	auto body = udemy_get(url.str(), 15000);
 	json j = json::parse(body);

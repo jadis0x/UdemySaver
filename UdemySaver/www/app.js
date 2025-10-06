@@ -324,19 +324,52 @@ if(asset.download_urls && asset.download_urls.Video && asset.download_urls.Video
 return {type:'mp4', label:'download', url:asset.download_urls.Video[0].file};
 }
 const list = (asset.stream_urls && asset.stream_urls.Video) ? asset.stream_urls.Video : [];
-const mp4s = list.filter(x=>x.type==='video/mp4' && x.file);
-const hls  = list.find(x=>x.type==='application/x-mpegURL' && x.file);
-if(mp4s.length){
-mp4s.sort((a,b)=>(parseInt(b.label,10)||0)-(parseInt(a.label,10)||0));
-let chosen=null;
-if(preference==='Lowest') chosen=mp4s[mp4s.length-1];
-else if(/^\d+$/.test(preference)) chosen=mp4s.find(x=>String(x.label)===String(preference))||mp4s[0];
-else chosen=mp4s[0];
-return {type:'mp4', label:chosen.label, url:chosen.file};
+const mp4s = list
+    .filter(x=>x && x.type==='video/mp4' && x.file)
+    .map(x=>({raw:x, quality:parseInt(x.label,10)||0}));
+mp4s.sort((a,b)=>a.quality-b.quality);
+const lowestMp4 = mp4s.length ? mp4s[0] : null;
+const bestMp4 = mp4s.length ? mp4s[mp4s.length-1] : null;
+
+const buildHls = ()=>{
+    const hlsEntry = list.find(x=>x && x.type==='application/x-mpegURL' && x.file);
+    if(hlsEntry) return {type:'hls', label:hlsEntry.label||'Auto', url:hlsEntry.file};
+    if(asset.hls_url) return {type:'hls', label:'Auto', url:asset.hls_url};
+    if(Array.isArray(asset.media_sources)){
+        for(const m of asset.media_sources){
+            if(!m) continue;
+            const src = m.src || m.file || m.url;
+            if(src) return {type:'hls', label:m.label||m.quality||'Auto', url:src};
+        }
+    }
+    return null;
+};
+
+const hlsSource = buildHls();
+const prefValue = /^\d+$/.test(preference) ? parseInt(preference,10) : null;
+const highestMp4 = bestMp4 ? bestMp4.quality : 0;
+let preferHls = false;
+if(hlsSource){
+    if(preference==='Highest') preferHls = true;
+    else if(prefValue && (prefValue >= 1080 || (highestMp4>0 && prefValue>highestMp4))) preferHls = true;
 }
-if(hls) return {type:'hls', label:'Auto', url:hls.file};
-if(asset.hls_url) return {type:'hls', label:'Auto', url:asset.hls_url};
-if(Array.isArray(asset.media_sources)){ const m=asset.media_sources.find(x=>x&&x.src); if(m&&m.src) return {type:'mp4', label:'Auto', url:m.src}; }
+
+if(preferHls && hlsSource) return hlsSource;
+if(mp4s.length){
+    let chosen = bestMp4;
+    if(preference==='Lowest' && lowestMp4) chosen = lowestMp4;
+    else if(prefValue){
+        const exact = mp4s.find(x=>x.quality===prefValue) || mp4s.find(x=>String(x.raw.label)===String(preference));
+        if(exact) chosen = exact;
+        else{
+            const higherOrEqual = mp4s.find(x=>x.quality>=prefValue);
+            if(higherOrEqual) chosen = higherOrEqual;
+        }
+    }
+    return {type:'mp4', label:chosen.raw.label, url:chosen.raw.file};
+}
+
+if(hlsSource) return hlsSource;
 return null;
 }
 
