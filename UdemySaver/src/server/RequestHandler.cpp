@@ -807,8 +807,9 @@ RequestHandler::handleQueueAdd(const std::string& body) {
 		j.headers.push_back("Origin: https://www.udemy.com");
 		if (!token_.empty())
 		{
+			// Using only the Authorization header avoids reusing the browser's
+			// session cookie which could invalidate the user's browser login.
 			j.headers.push_back(std::string("Authorization: Bearer ") + token_);
-			j.headers.push_back(std::string("Cookie: access_token=") + token_ + ";");
 		}
 		if (in.contains("headers") && in["headers"].is_array())
 			for (auto& h : in["headers"]) if (h.is_string()) j.headers.push_back(h.get<std::string>());
@@ -1536,6 +1537,247 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 		throw std::runtime_error("lecture has no asset");
 
 	auto& a = j["asset"];
+
+	auto is_exact_1080 = [](const std::string& s) -> bool
+	{
+		if (s.empty()) return false;
+		for (char c : s)
+		{
+			if (!std::isdigit(static_cast<unsigned char>(c))) return false;
+		}
+		return Helper::extract_quality_value(s) == 1080;
+	};
+
+	if (is_exact_1080(prefer_quality))
+	{
+		auto make_absolute = [](const std::string& base_url, const std::string& rel) -> std::string
+		{
+			if (rel.empty()) return base_url;
+			if (rel.find("://") != std::string::npos) return rel;
+
+			std::string base_no_query = base_url;
+			std::string base_query;
+			auto qpos = base_no_query.find('?');
+			if (qpos != std::string::npos)
+			{
+				base_query = base_url.substr(qpos);
+				base_no_query = base_no_query.substr(0, qpos);
+			}
+
+			auto append_query = [&](std::string result) -> std::string
+			{
+				if (!base_query.empty() && result.find('?') == std::string::npos)
+					result += base_query;
+				return result;
+			};
+
+			if (!rel.empty() && rel[0] == '/')
+			{
+				auto scheme_pos = base_no_query.find("://");
+				if (scheme_pos == std::string::npos) return append_query(rel);
+				auto host_end = base_no_query.find('/', scheme_pos + 3);
+				std::string origin = (host_end == std::string::npos)
+					? base_no_query
+					: base_no_query.substr(0, host_end);
+				return append_query(origin + rel);
+			}
+
+			std::string base_dir = base_no_query;
+			auto slash = base_dir.rfind('/');
+			if (slash == std::string::npos)
+				base_dir += '/';
+			else
+				base_dir = base_dir.substr(0, slash + 1);
+
+			return append_query(base_dir + rel);
+		};
+
+		auto fetch_with_headers = [&](const std::string& src) -> std::string
+		{
+			CurlHandle ch; if (!ch.h) throw std::runtime_error("curl init failed");
+
+			struct curl_slist* hdr = nullptr;
+			std::vector<std::string> headers = {
+					"User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0",
+					"Referer: https://www.udemy.com/",
+					"Origin: https://www.udemy.com"
+			};
+			if (!token_.empty())
+			{
+				headers.push_back(std::string("Authorization: Bearer ") + token_);
+				headers.push_back(std::string("Cookie: access_token=") + token_ + ";");
+			}
+
+			for (auto& h : headers) hdr = curl_slist_append(hdr, h.c_str());
+
+			std::string out;
+			curl_easy_setopt(ch.h, CURLOPT_URL, src.c_str());
+			curl_easy_setopt(ch.h, CURLOPT_FOLLOWLOCATION, 1L);
+			curl_easy_setopt(ch.h, CURLOPT_MAXREDIRS, 8L);
+			curl_easy_setopt(ch.h, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0");
+			curl_easy_setopt(ch.h, CURLOPT_ACCEPT_ENCODING, "");
+			curl_easy_setopt(ch.h, CURLOPT_HTTPHEADER, hdr);
+			curl_easy_setopt(ch.h, CURLOPT_WRITEFUNCTION, Helper::write_to_string);
+			curl_easy_setopt(ch.h, CURLOPT_WRITEDATA, &out);
+			curl_easy_setopt(ch.h, CURLOPT_CONNECTTIMEOUT_MS, 8000L);
+			curl_easy_setopt(ch.h, CURLOPT_TIMEOUT_MS, 20000L);
+			curl_easy_setopt(ch.h, CURLOPT_SSL_VERIFYPEER, 1L);
+			curl_easy_setopt(ch.h, CURLOPT_SSL_VERIFYHOST, 2L);
+			if (!proxy_.empty()) curl_easy_setopt(ch.h, CURLOPT_PROXY, proxy_.c_str());
+
+			CURLcode rc = curl_easy_perform(ch.h);
+			if (hdr) curl_slist_free_all(hdr);
+
+			if (rc != CURLE_OK)
+			{
+				throw std::runtime_error(std::string("curl: ") + curl_easy_strerror(rc));
+			}
+
+			long code = 0;
+			curl_easy_getinfo(ch.h, CURLINFO_RESPONSE_CODE, &code);
+			if (code < 200 || code >= 300)
+			{
+				throw std::runtime_error("http " + std::to_string(code));
+			}
+
+			return out;
+		};
+
+		auto pick_variant_from_master = [&](const std::string& master_url, const std::string& playlist) -> std::string
+		{
+			if (playlist.find("#EXT-X-KEY") != std::string::npos)
+				throw std::runtime_error("Encrypted stream. Exiting.");
+
+			struct Variant {
+				std::string uri;
+				int width = 0;
+				int height = 0;
+				long long bandwidth = 0;
+			};
+
+			std::vector<Variant> variants;
+			std::istringstream ss(playlist);
+			std::string line;
+			while (std::getline(ss, line))
+			{
+				if (!line.empty() && line.back() == '\r') line.pop_back();
+				std::string trimmed = Helper::trim(line);
+				if (trimmed.rfind("#EXT-X-STREAM-INF", 0) != 0) continue;
+
+				Variant v;
+				auto colon = trimmed.find(':');
+				std::string attrs = (colon == std::string::npos) ? std::string {} : trimmed.substr(colon + 1);
+
+				auto find_attr = [&](const std::string& key) -> std::string
+				{
+					auto pos = attrs.find(key);
+					if (pos == std::string::npos) return {};
+					pos += key.size();
+					auto end = attrs.find(',', pos);
+					std::string val = (end == std::string::npos) ? attrs.substr(pos) : attrs.substr(pos, end - pos);
+					return Helper::trim(val);
+				};
+
+				std::string res = find_attr("RESOLUTION=");
+				auto x = res.find('x');
+				if (x != std::string::npos)
+				{
+					try
+					{
+						v.width = std::stoi(res.substr(0, x));
+						v.height = std::stoi(res.substr(x + 1));
+					}
+					catch (...)
+					{
+						v.width = v.height = 0;
+					}
+				}
+
+				std::string bw = find_attr("BANDWIDTH=");
+				if (!bw.empty())
+				{
+					try { v.bandwidth = std::stoll(bw); }
+					catch (...) { v.bandwidth = 0; }
+				}
+
+				std::string next_line;
+				while (std::getline(ss, next_line))
+				{
+					if (!next_line.empty() && next_line.back() == '\r') next_line.pop_back();
+					std::string url_line = Helper::trim(next_line);
+					if (url_line.empty()) continue;
+					if (url_line.rfind("#", 0) == 0) continue;
+					v.uri = url_line;
+					break;
+				}
+
+				if (!v.uri.empty()) variants.push_back(std::move(v));
+			}
+
+			if (variants.empty()) return {};
+
+			const Variant* exact = nullptr;
+			const Variant* best_height = nullptr;
+			const Variant* best_bandwidth = nullptr;
+			for (auto& v : variants)
+			{
+				if (v.height == 1080 && v.width == 1920)
+				{
+					exact = &v;
+					break;
+				}
+				if (!best_height || v.height > best_height->height)
+					best_height = &v;
+				if (!best_bandwidth || v.bandwidth > best_bandwidth->bandwidth)
+					best_bandwidth = &v;
+			}
+
+			const Variant* chosen = exact;
+			if (!chosen)
+			{
+				if (best_height && best_height->height > 0) chosen = best_height;
+				else chosen = best_bandwidth;
+			}
+
+			if (!chosen) return {};
+			return make_absolute(master_url, chosen->uri);
+		};
+
+		auto first_media_source = [&]() -> std::string
+		{
+			if (a.contains("media_sources") && a["media_sources"].is_array())
+			{
+				for (auto& m : a["media_sources"])
+				{
+					if (m.contains("src") && m["src"].is_string())
+					{
+						std::string src = m["src"].get<std::string>();
+						if (!src.empty()) return src;
+					}
+				}
+			}
+			return {};
+		};
+
+		std::string master_src = first_media_source();
+		if (!master_src.empty())
+		{
+			try
+			{
+				std::string playlist = fetch_with_headers(master_src);
+				std::string variant = pick_variant_from_master(master_src, playlist);
+				if (!variant.empty()) return variant;
+			}
+			catch (const std::runtime_error& e)
+			{
+				if (std::string(e.what()) == "Encrypted stream. Exiting.") throw;
+			}
+			catch (...)
+			{
+			}
+		}
+	}
+
 	if (a.contains("stream_urls") && a["stream_urls"].is_object())
 	{
 		auto& su = a["stream_urls"];
@@ -1669,6 +1911,7 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 
 	throw std::runtime_error("no stream url found in lecture");
 }
+
 
 std::string RequestHandler::resolve_supplementary_asset(int course_id, int lecture_id, int asset_id) {
 	std::ostringstream url;
