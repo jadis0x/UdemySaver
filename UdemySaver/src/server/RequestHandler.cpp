@@ -372,8 +372,12 @@ std::string RequestHandler::udemy_get(const std::string& url, long timeout_ms) {
 
 	// headers
 	std::string auth = "Authorization: Bearer " + token_;
+	std::string udemy_auth = "X-Udemy-Authorization: Bearer " + token_;
+	std::string cookie = "Cookie: access_token=" + token_;
 	hdr.list = curl_slist_append(hdr.list, auth.c_str());
+	hdr.list = curl_slist_append(hdr.list, udemy_auth.c_str());
 	hdr.list = curl_slist_append(hdr.list, "Accept: application/json, text/plain, */*");
+	hdr.list = curl_slist_append(hdr.list, cookie.c_str());
 	hdr.list = curl_slist_append(hdr.list, "Referer: https://www.udemy.com/");
 	hdr.list = curl_slist_append(hdr.list, "Origin: https://www.udemy.com");
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdr.list);
@@ -809,9 +813,10 @@ RequestHandler::handleQueueAdd(const std::string& body) {
 		j.headers.push_back("Origin: https://www.udemy.com");
 		if (!token_.empty())
 		{
-			// Using only the Authorization header avoids reusing the browser's
-			// session cookie which could invalidate the user's browser login.
+			// Udemy's CDN expects the bearer token in Authorization, X-Udemy-Authorization, and Cookie headers.
 			j.headers.push_back(std::string("Authorization: Bearer ") + token_);
+			j.headers.push_back(std::string("X-Udemy-Authorization: Bearer ") + token_);
+			j.headers.push_back(std::string("Cookie: access_token=") + token_);
 		}
 		if (in.contains("headers") && in["headers"].is_array())
 			for (auto& h : in["headers"]) if (h.is_string()) j.headers.push_back(h.get<std::string>());
@@ -1129,7 +1134,12 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleEstimat
 					"Referer: https://www.udemy.com/",
 					"Origin: https://www.udemy.com"
 				};
-				if (!token_.empty()) hdrs.push_back(std::string("Authorization: Bearer ") + token_);
+				if (!token_.empty())
+				{
+					hdrs.push_back(std::string("Authorization: Bearer ") + token_);
+					hdrs.push_back(std::string("X-Udemy-Authorization: Bearer ") + token_);
+					hdrs.push_back(std::string("Cookie: access_token=") + token_);
+				}
 
 				if (probe_content_length(urlv, hdrs, bytes, emsg) && bytes >= 0)
 				{
@@ -1324,6 +1334,8 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 			if (!token_.empty())
 			{
 				headers.push_back(std::string("Authorization: Bearer ") + token_);
+				headers.push_back(std::string("X-Udemy-Authorization: Bearer ") + token_);
+				headers.push_back(std::string("Cookie: access_token=") + token_);
 			}
 
 			for (auto& h : headers) hdr = curl_slist_append(hdr, h.c_str());
