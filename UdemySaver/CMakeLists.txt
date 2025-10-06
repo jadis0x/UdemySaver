@@ -5,13 +5,20 @@ set (SOURCES
     "src/server/HttpServer.h"
     "src/server/RequestHandler.h"
     "src/server/RequestHandler.cpp"
-)
+    "utils/FFmpegHelper.h"
+    "utils/FFmpegHelper.cpp"
+    )
 
 if (WIN32)
     list(APPEND SOURCES "../resources/app.rc")
 endif()
 
-add_executable (UdemySaver ${SOURCES} "utils/helper.h")
+add_executable(UdemySaver
+    src/main.cpp
+    src/server/HttpServer.cpp
+    src/server/RequestHandler.cpp
+    utils/FFmpegHelper.cpp
+)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET UdemySaver PROPERTY CXX_STANDARD 20)
