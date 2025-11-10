@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <nlohmann/json.hpp>
 #include <unordered_set>
+#include <condition_variable>
 
 struct HeaderProbe {
 	long long content_length = -1;       // Content-Length
@@ -94,6 +95,7 @@ public:
 							std::function<void(double, double)> on_progress,
 							std::string& msg);
 
+	void append_auth_headers_for_url(const std::string& url, std::vector<std::string>& headers) const;
 private:
 	// settings
 	void load_settings();
@@ -115,6 +117,7 @@ private:
 	std::string webroot_;
 	std::string token_;     // settings: udemy_access_token / access_token
 	std::string api_base_;  // settings: udemy_api_base (default https://www.udemy.com)
+	std::string api_host_;
 	std::string proxy_;     // settings: http_proxy (optional)
 	bool download_subtitles_ = true; // settings: download_subtitles
 	bool download_assets_ = true; // settings: download_assets

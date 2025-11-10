@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <cctype>
+#include <algorithm>
 
 extern "C" {
 #include <libavutil/error.h>
@@ -165,4 +166,39 @@ namespace Helper
 		}
 	}
 
+    inline std::string extract_host(const std::string& url) {
+        std::string working = url;
+        auto scheme = working.find("://");
+        std::size_t host_start = 0;
+        if (scheme != std::string::npos)
+        {
+            host_start = scheme + 3;
+        }
+
+        if (host_start >= working.size()) return {};
+        working = working.substr(host_start);
+
+        auto at = working.find('@');
+        if (at != std::string::npos)
+        {
+            working = working.substr(at + 1);
+        }
+
+        auto slash = working.find_first_of("/?#");
+        if (slash != std::string::npos)
+        {
+            working = working.substr(0, slash);
+        }
+
+        auto colon = working.find(':');
+        if (colon != std::string::npos)
+        {
+            working = working.substr(0, colon);
+        }
+
+        std::string lower = working;
+        std::transform(lower.begin(), lower.end(), lower.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return lower;
+    }
 }

@@ -83,7 +83,6 @@ private:
 				return write(std::move(res));
 			}
 			
-			// HttpServer.cpp, handle() içinde uygun yere ekle
 			if (req_.method() == http::verb::post && req_.target() == "/settings") {
 				auto [st, body] = handler_->handleSettingsUpdate(req_.body());
 				http::response<http::string_body> res{ st, req_.version() };
@@ -231,8 +230,7 @@ private:
 			if (req_.method() == http::verb::get &&
 				std::string(req_.target()).rfind("/reconcile", 0) == 0) {
 				std::string target = std::string(req_.target());
-				// paramları çek (course_id ve title)
-				// title slug/klasör adı üretimi için lazım olabilir
+
 				auto [st, body] = handler_->handleReconcile(target);
 				http::response<http::string_body> res{ st, req_.version() };
 				res.set(http::field::server, "beast");

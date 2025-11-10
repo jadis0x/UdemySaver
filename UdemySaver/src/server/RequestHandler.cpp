@@ -292,6 +292,7 @@ void RequestHandler::load_settings() {
 			f << "download_subtitles=true\n";
 			f << "download_assets=true\n";
 		}
+
 		token_.clear();
 		api_base_ = "https://www.udemy.com";
 		proxy_.clear();
@@ -324,6 +325,8 @@ void RequestHandler::load_settings() {
 
 	if (kv.count("udemy_api_base")) api_base_ = kv["udemy_api_base"];
 	else if (kv.count("api_base"))   api_base_ = kv["api_base"];
+
+	api_host_ = Helper::extract_host(api_base_);
 
 	if (kv.count("http_proxy")) proxy_ = kv["http_proxy"];
 	else if (kv.count("proxy")) proxy_ = kv["proxy"];
@@ -807,13 +810,9 @@ RequestHandler::handleQueueAdd(const std::string& body) {
 		j.headers.push_back("User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0");
 		j.headers.push_back("Referer: https://www.udemy.com/");
 		j.headers.push_back("Origin: https://www.udemy.com");
-		if (!token_.empty())
-		{
-			// Udemy's CDN expects the bearer token in Authorization, X-Udemy-Authorization, and Cookie headers.
-			j.headers.push_back(std::string("Authorization: Bearer ") + token_);
-			j.headers.push_back(std::string("X-Udemy-Authorization: Bearer ") + token_);
-			j.headers.push_back(std::string("Cookie: access_token=") + token_);
-		}
+
+		append_auth_headers_for_url(j.url, j.headers);
+
 		if (in.contains("headers") && in["headers"].is_array())
 			for (auto& h : in["headers"]) if (h.is_string()) j.headers.push_back(h.get<std::string>());
 
@@ -1126,16 +1125,11 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleEstimat
 
 				long long bytes = -1; std::string emsg;
 				std::vector<std::string> hdrs = {
-					"User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0",
-					"Referer: https://www.udemy.com/",
-					"Origin: https://www.udemy.com"
+										"User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0",
+										"Referer: https://www.udemy.com/",
+										"Origin: https://www.udemy.com"
 				};
-				if (!token_.empty())
-				{
-					hdrs.push_back(std::string("Authorization: Bearer ") + token_);
-					hdrs.push_back(std::string("X-Udemy-Authorization: Bearer ") + token_);
-					hdrs.push_back(std::string("Cookie: access_token=") + token_);
-				}
+				append_auth_headers_for_url(urlv, hdrs);
 
 				if (probe_content_length(urlv, hdrs, bytes, emsg) && bytes >= 0)
 				{
@@ -1246,6 +1240,23 @@ bool RequestHandler::curl_download_file(const std::string& url, const std::strin
 	return true;
 }
 
+void RequestHandler::append_auth_headers_for_url(const std::string& url, std::vector<std::string>& headers) const
+{
+	if (token_.empty()) return;
+
+	std::string host = Helper::extract_host(url);
+	if (host.empty() && !api_host_.empty())
+	{
+		host = api_host_;
+	}
+
+	if (!api_host_.empty() && host != api_host_)
+	{
+		return;
+	}
+
+	headers.push_back(std::string("Authorization: Bearer ") + token_);
+}
 
 std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id, const std::string& prefer_quality) {
 	std::ostringstream url;
@@ -1323,16 +1334,11 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 
 			struct curl_slist* hdr = nullptr;
 			std::vector<std::string> headers = {
-					"User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0",
-					"Referer: https://www.udemy.com/",
-					"Origin: https://www.udemy.com"
+										"User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0",
+										"Referer: https://www.udemy.com/",
+										"Origin: https://www.udemy.com"
 			};
-			if (!token_.empty())
-			{
-				headers.push_back(std::string("Authorization: Bearer ") + token_);
-				headers.push_back(std::string("X-Udemy-Authorization: Bearer ") + token_);
-				headers.push_back(std::string("Cookie: access_token=") + token_);
-			}
+			append_auth_headers_for_url(src, headers);
 
 			for (auto& h : headers) hdr = curl_slist_append(hdr, h.c_str());
 
