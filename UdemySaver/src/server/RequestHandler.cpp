@@ -39,6 +39,10 @@ extern "C" {
 using boost::beast::http::status;
 using json = nlohmann::json;
 
+namespace {
+	constexpr const char* kDefaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0";
+}
+
 struct CurlHandle { CURL* h = nullptr; CurlHandle() { h = curl_easy_init(); } ~CurlHandle() { if (h) curl_easy_cleanup(h); } };
 
 size_t RequestHandler::header_probe_cb(char* buffer, size_t size, size_t nitems, void* userdata) {
@@ -86,7 +90,7 @@ bool RequestHandler::probe_content_length(const std::string& url,
 	curl_easy_setopt(ch.h, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(ch.h, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(ch.h, CURLOPT_MAXREDIRS, 8L);
-	curl_easy_setopt(ch.h, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0");
+	curl_easy_setopt(ch.h, CURLOPT_USERAGENT, kDefaultUserAgent);
 	curl_easy_setopt(ch.h, CURLOPT_ACCEPT_ENCODING, "");
 	curl_easy_setopt(ch.h, CURLOPT_HTTPHEADER, hdr);
 	curl_easy_setopt(ch.h, CURLOPT_NOBODY, 1L);                       // HEAD
@@ -359,7 +363,7 @@ std::string RequestHandler::udemy_get(const std::string& url, long timeout_ms) {
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 8L);
-	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0");
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, kDefaultUserAgent);
 	curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, ""); // enable gzip/deflate
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout_ms);
 	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 8000L);
@@ -807,7 +811,7 @@ RequestHandler::handleQueueAdd(const std::string& body) {
 			cp.total += 1;
 		}
 
-		j.headers.push_back("User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0");
+		j.headers.push_back(std::string("User-Agent: ") + kDefaultUserAgent);
 		j.headers.push_back("Referer: https://www.udemy.com/");
 		j.headers.push_back("Origin: https://www.udemy.com");
 
@@ -1125,7 +1129,7 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleEstimat
 
 				long long bytes = -1; std::string emsg;
 				std::vector<std::string> hdrs = {
-										"User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0",
+										std::string("User-Agent: ") + kDefaultUserAgent,
 										"Referer: https://www.udemy.com/",
 										"Origin: https://www.udemy.com"
 				};
@@ -1201,7 +1205,7 @@ bool RequestHandler::curl_download_file(const std::string& url, const std::strin
 	curl_easy_setopt(ch.h, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(ch.h, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(ch.h, CURLOPT_MAXREDIRS, 8L);
-	curl_easy_setopt(ch.h, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0");
+	curl_easy_setopt(ch.h, CURLOPT_USERAGENT, kDefaultUserAgent);
 	curl_easy_setopt(ch.h, CURLOPT_ACCEPT_ENCODING, ""); // gzip
 	curl_easy_setopt(ch.h, CURLOPT_HTTPHEADER, hdr);
 	curl_easy_setopt(ch.h, CURLOPT_WRITEDATA, fp);
@@ -1334,7 +1338,7 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 
 			struct curl_slist* hdr = nullptr;
 			std::vector<std::string> headers = {
-										"User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0",
+										std::string("User-Agent: ") + kDefaultUserAgent,
 										"Referer: https://www.udemy.com/",
 										"Origin: https://www.udemy.com"
 			};
@@ -1346,7 +1350,7 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 			curl_easy_setopt(ch.h, CURLOPT_URL, src.c_str());
 			curl_easy_setopt(ch.h, CURLOPT_FOLLOWLOCATION, 1L);
 			curl_easy_setopt(ch.h, CURLOPT_MAXREDIRS, 8L);
-			curl_easy_setopt(ch.h, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0");
+			curl_easy_setopt(ch.h, CURLOPT_USERAGENT, kDefaultUserAgent);
 			curl_easy_setopt(ch.h, CURLOPT_ACCEPT_ENCODING, "");
 			curl_easy_setopt(ch.h, CURLOPT_HTTPHEADER, hdr);
 			curl_easy_setopt(ch.h, CURLOPT_WRITEFUNCTION, Helper::write_to_string);

@@ -106,7 +106,9 @@ bool FFmpegHelper::convert_m3u8_to_ts(
 		}
 		av_dict_set(&in_opts, "headers", header_block.c_str(), 0);
 	}
-	av_dict_set(&in_opts, "user_agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0", 0);
+	av_dict_set(&in_opts, "user_agent",
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+		0);
 	if (!proxy.empty())
 	{
 		av_dict_set(&in_opts, "http_proxy", proxy.c_str(), 0);
