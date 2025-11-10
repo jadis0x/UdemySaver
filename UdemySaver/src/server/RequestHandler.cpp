@@ -1744,7 +1744,7 @@ void RequestHandler::worker_loop() {
 			std::cout << "[HLS] Downloading HLS stream to TS: " << Helper::path_to_utf8(target_path) << std::endl;
 		}
 
-		j.out_path = target_path.string();
+		j.out_path = Helper::path_to_utf8(target_path);
 
 		std::atomic<double>     last_ts { now_sec() };
 		std::atomic<long long>  last_bytes { 0 };
