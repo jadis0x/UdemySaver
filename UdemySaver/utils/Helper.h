@@ -4,6 +4,15 @@
 #include <sstream>
 #include <cctype>
 #include <algorithm>
+#include <cstdio>
+#include <filesystem>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 extern "C" {
 #include <libavutil/error.h>
@@ -12,13 +21,31 @@ extern "C" {
 namespace Helper
 {
 	inline FILE* xfopen(const char* path, const char* mode) {
-	#ifdef _MSC_VER
-		FILE* fp = nullptr;
-		if (fopen_s(&fp, path, mode) != 0) return nullptr;
-		return fp;
-	#else
-		return std::fopen(path, mode);
-	#endif
+#ifdef _WIN32
+        auto utf8_to_wide = [](const char* str) -> std::wstring
+            {
+                if (!str) return {};
+                int needed = MultiByteToWideChar(CP_UTF8, 0, str, -1, nullptr, 0);
+                if (needed <= 0) return {};
+                std::wstring out(static_cast<size_t>(needed - 1), L'\0');
+                if (MultiByteToWideChar(CP_UTF8, 0, str, -1, out.data(), needed) <= 0) return {};
+                return out;
+            };
+
+        std::wstring wpath = utf8_to_wide(path);
+        std::wstring wmode = utf8_to_wide(mode);
+        if (wpath.empty() || wmode.empty()) return nullptr;
+
+#ifdef _MSC_VER
+        FILE* fp = nullptr;
+        if (_wfopen_s(&fp, wpath.c_str(), wmode.c_str()) != 0) return nullptr;
+        return fp;
+#else
+        return _wfopen(wpath.c_str(), wmode.c_str());
+#endif
+#else
+        return std::fopen(path, mode);
+#endif
 	}
 
 	inline std::string slugify(const std::string& s) {
@@ -147,6 +174,16 @@ namespace Helper
 	inline size_t write_discard(void* ptr, size_t size, size_t nmemb, void*) {
 		return size * nmemb;
 	}
+
+    inline std::string path_to_utf8(const std::filesystem::path& p)
+    {
+#if defined(_WIN32)
+        auto u8 = p.u8string();
+        return std::string(u8.begin(), u8.end());
+#else
+        return p.string();
+#endif
+    }
 
 	inline int extract_quality_value(const std::string& label) {
 		std::string digits;

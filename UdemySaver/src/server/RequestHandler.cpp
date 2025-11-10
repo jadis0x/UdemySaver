@@ -788,8 +788,9 @@ RequestHandler::handleQueueAdd(const std::string& body) {
 
 		{
 			std::error_code fec;
-			std::filesystem::create_directories(j.out_path_dir, fec);
-			std::string final_path = j.out_path_dir + "/" + j.filename;
+			auto out_dir = std::filesystem::u8path(j.out_path_dir);
+			std::filesystem::create_directories(out_dir, fec);
+			auto final_path = out_dir / std::filesystem::u8path(j.filename);
 
 			bool exists_final = std::filesystem::exists(final_path, fec);
 			if (exists_final)
@@ -799,7 +800,7 @@ RequestHandler::handleQueueAdd(const std::string& body) {
 				out2["queued"] = false;
 				out2["skipped"] = true;
 				out2["reason"] = "exists";
-				out2["path"] = final_path;
+				out2["path"] = Helper::path_to_utf8(final_path);
 				return { status::ok, out2.dump() };
 			}
 		}
@@ -1049,15 +1050,19 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleReconci
 	}
 
 	std::error_code ec;
-	if (std::filesystem::exists(dir, ec))
+	auto dir_path = std::filesystem::u8path(dir);
+	if (std::filesystem::exists(dir_path, ec))
 	{
-		for (auto& p : std::filesystem::recursive_directory_iterator(dir, ec))
+		for (auto& p : std::filesystem::recursive_directory_iterator(dir_path, ec))
 		{
 			if (p.is_regular_file())
 			{
-				auto name = p.path().filename().string();
+				auto name = Helper::path_to_utf8(p.path().filename());
 				int idx = 0;
-				if (name.size() >= 3 && std::isdigit(name[0]) && std::isdigit(name[1]) && std::isdigit(name[2]))
+				if (name.size() >= 3 &&
+					std::isdigit(static_cast<unsigned char>(name[0])) &&
+					std::isdigit(static_cast<unsigned char>(name[1])) &&
+					std::isdigit(static_cast<unsigned char>(name[2])))
 				{
 					idx = (name[0] - '0') * 100 + (name[1] - '0') * 10 + (name[2] - '0');
 				}
@@ -1183,7 +1188,12 @@ static int curl_xferinfo_trampoline(void* clientp,
 
 bool RequestHandler::curl_download_file(const std::string& url, const std::string& out_path, const std::vector<std::string>& extra_headers, std::function<void(double, double)> on_progress, std::string& msg) {
 	msg.clear();
-	std::string tmp_path = out_path + ".part";
+	auto out_fs = std::filesystem::u8path(out_path);
+	auto tmp_path = out_fs;
+	tmp_path += ".part";
+
+	auto tmp_utf8_u8 = tmp_path.u8string();
+	std::string tmp_utf8(tmp_utf8_u8.begin(), tmp_utf8_u8.end());
 
 	long long already = 0;
 	{
@@ -1192,7 +1202,7 @@ bool RequestHandler::curl_download_file(const std::string& url, const std::strin
 		if (!ec) already = static_cast<long long>(sz);
 	}
 
-	FILE* fp = Helper::xfopen(tmp_path.c_str(), already ? "ab" : "wb");
+	FILE* fp = Helper::xfopen(tmp_utf8.c_str(), already ? "ab" : "wb");
 	if (!fp) { msg = "cannot open file"; return false; }
 
 	CurlHandle ch;
@@ -1238,7 +1248,7 @@ bool RequestHandler::curl_download_file(const std::string& url, const std::strin
 	}
 
 	std::error_code ec;
-	std::filesystem::rename(tmp_path, out_path, ec);
+	std::filesystem::rename(tmp_path, out_fs, ec);
 	if (ec) { msg = "rename failed"; return false; }
 
 	return true;
@@ -1725,13 +1735,13 @@ void RequestHandler::worker_loop() {
 		std::transform(lower_url.begin(), lower_url.end(), lower_url.begin(), [](unsigned char c) { return (char) std::tolower(c); });
 		bool is_hls = lower_url.find(".m3u8") != std::string::npos;
 
-		const std::string out_dir = j.out_path_dir;
-		std::filesystem::path target_path = std::filesystem::path(out_dir) / j.filename;
+		auto out_dir = std::filesystem::u8path(j.out_path_dir);
+		std::filesystem::path target_path = out_dir / std::filesystem::u8path(j.filename);
 		if (is_hls)
 		{
 			target_path.replace_extension(".ts");
-			j.filename = target_path.filename().string();
-			std::cout << "[HLS] Downloading HLS stream to TS: " << target_path.string() << std::endl;
+			j.filename = Helper::path_to_utf8(target_path.filename());
+			std::cout << "[HLS] Downloading HLS stream to TS: " << Helper::path_to_utf8(target_path) << std::endl;
 		}
 
 		j.out_path = target_path.string();
