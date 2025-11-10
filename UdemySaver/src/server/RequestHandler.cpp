@@ -372,12 +372,8 @@ std::string RequestHandler::udemy_get(const std::string& url, long timeout_ms) {
 
 	// headers
 	std::string auth = "Authorization: Bearer " + token_;
-	std::string udemy_auth = "X-Udemy-Authorization: Bearer " + token_;
-	std::string cookie = "Cookie: access_token=" + token_;
 	hdr.list = curl_slist_append(hdr.list, auth.c_str());
-	hdr.list = curl_slist_append(hdr.list, udemy_auth.c_str());
 	hdr.list = curl_slist_append(hdr.list, "Accept: application/json, text/plain, */*");
-	hdr.list = curl_slist_append(hdr.list, cookie.c_str());
 	hdr.list = curl_slist_append(hdr.list, "Referer: https://www.udemy.com/");
 	hdr.list = curl_slist_append(hdr.list, "Origin: https://www.udemy.com");
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdr.list);
