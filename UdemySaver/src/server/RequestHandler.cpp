@@ -1248,17 +1248,6 @@ void RequestHandler::append_auth_headers_for_url(const std::string& url, std::ve
 {
 	if (token_.empty()) return;
 
-	std::string host = Helper::extract_host(url);
-	if (host.empty() && !api_host_.empty())
-	{
-		host = api_host_;
-	}
-
-	if (!api_host_.empty() && host != api_host_)
-	{
-		return;
-	}
-
 	headers.push_back(std::string("Authorization: Bearer ") + token_);
 }
 
