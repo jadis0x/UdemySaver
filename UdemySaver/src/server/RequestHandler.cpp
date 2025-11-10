@@ -50,14 +50,14 @@ size_t RequestHandler::header_probe_cb(char* buffer, size_t size, size_t nitems,
 	HeaderProbe* hp = reinterpret_cast<HeaderProbe*>(userdata);
 	std::string line(buffer, buffer + total);
 
-	std::string low = line; std::transform(low.begin(), low.end(), low.begin(), [](unsigned char c) { return (char) std::tolower(c); });
+	std::string low = line; std::transform(low.begin(), low.end(), low.begin(), [](unsigned char c) { return (char)std::tolower(c); });
 
 	const std::string cl = "content-length:";
 	if (low.rfind(cl, 0) == 0)
 	{
-		std::string num = line.substr((int) cl.size());
+		std::string num = line.substr((int)cl.size());
 		try { hp->content_length = std::stoll(Helper::trim(num)); }
-		catch (...) { }
+		catch (...) {}
 	}
 
 	// content-range: bytes 0-0/12345
@@ -69,7 +69,7 @@ size_t RequestHandler::header_probe_cb(char* buffer, size_t size, size_t nitems,
 		{
 			std::string total_s = line.substr(slash + 1);
 			try { hp->content_range_total = std::stoll(Helper::trim(total_s)); }
-			catch (...) { }
+			catch (...) {}
 		}
 	}
 	return total;
@@ -77,8 +77,8 @@ size_t RequestHandler::header_probe_cb(char* buffer, size_t size, size_t nitems,
 
 
 bool RequestHandler::probe_content_length(const std::string& url,
-										  const std::vector<std::string>& extra_headers,
-										  long long& out_bytes, std::string& err) {
+	const std::vector<std::string>& extra_headers,
+	long long& out_bytes, std::string& err) {
 	out_bytes = -1; err.clear();
 	CurlHandle ch; if (!ch.h) { err = "curl init failed"; return false; }
 
@@ -111,7 +111,7 @@ bool RequestHandler::probe_content_length(const std::string& url,
 		return true;
 	}
 
-	hp = HeaderProbe {};
+	hp = HeaderProbe{};
 	curl_easy_setopt(ch.h, CURLOPT_NOBODY, 0L);
 	curl_easy_setopt(ch.h, CURLOPT_WRITEFUNCTION, Helper::write_discard);
 	curl_easy_setopt(ch.h, CURLOPT_RANGE, "0-0");
@@ -133,20 +133,29 @@ std::string RequestHandler::pick_from_asset_for_size(const json& a, const std::s
 	if (!a.is_object()) return {};
 
 	std::map<int, std::string> mp4_by_quality;
+	std::map<int, std::string> hls_by_quality;
 	std::string fallback_mp4;
 	std::string hls_candidate;
+	std::string auto_hls_candidate;
 
 	auto register_mp4 = [&](const std::string& file, int quality)
-	{
-		if (file.empty()) return;
-		if (fallback_mp4.empty()) fallback_mp4 = file;
-		if (quality > 0) mp4_by_quality[quality] = file;
-	};
+		{
+			if (file.empty()) return;
+			if (fallback_mp4.empty()) fallback_mp4 = file;
+			if (quality > 0) mp4_by_quality[quality] = file;
+		};
 
-	auto consider_hls = [&](const std::string& src)
-	{
-		if (!src.empty() && hls_candidate.empty()) hls_candidate = src;
-	};
+	auto consider_hls = [&](const std::string& src, const std::string& label)
+		{
+			if (!src.empty() && hls_candidate.empty()) hls_candidate = src;
+			if (label == "Auto" && auto_hls_candidate.empty()) auto_hls_candidate = src;
+
+			int q = Helper::extract_quality_value(label);
+			if (q > 0)
+			{
+				hls_by_quality[q] = src;
+			}
+		};
 
 	if (a.contains("download_urls") && a["download_urls"].is_object())
 	{
@@ -181,7 +190,7 @@ std::string RequestHandler::pick_from_asset_for_size(const json& a, const std::s
 				}
 				else if (type == "application/x-mpegURL")
 				{
-					consider_hls(file);
+					consider_hls(file, v.value("label", ""));
 				}
 			}
 		}
@@ -189,7 +198,7 @@ std::string RequestHandler::pick_from_asset_for_size(const json& a, const std::s
 
 	if (a.contains("hls_url") && a["hls_url"].is_string())
 	{
-		consider_hls(a["hls_url"].get<std::string>());
+		consider_hls(a["hls_url"].get<std::string>(), "");
 	}
 
 	if (a.contains("media_sources") && a["media_sources"].is_array())
@@ -198,34 +207,34 @@ std::string RequestHandler::pick_from_asset_for_size(const json& a, const std::s
 		{
 			if (m.contains("src") && m["src"].is_string())
 			{
-				consider_hls(m["src"].get<std::string>());
-				if (!hls_candidate.empty()) break;
+				std::string label = m.value("label", m.value("quality", std::string{}));
+				consider_hls(m["src"].get<std::string>(), label);
 			}
 		}
 	}
 
 	auto pick_preferred_mp4 = [&]() -> std::string
-	{
-		if (mp4_by_quality.empty())
 		{
-			return fallback_mp4;
-		}
+			if (mp4_by_quality.empty())
+			{
+				return fallback_mp4;
+			}
 
-		if (pref == "Lowest") return mp4_by_quality.begin()->second;
-		if (pref == "Highest" || pref == "Auto") return mp4_by_quality.rbegin()->second;
+			if (pref == "Lowest") return mp4_by_quality.begin()->second;
+			if (pref == "Highest" || pref == "Auto") return mp4_by_quality.rbegin()->second;
 
-		int wanted = Helper::extract_quality_value(pref);
-		if (wanted > 0)
-		{
-			auto it = mp4_by_quality.find(wanted);
-			if (it != mp4_by_quality.end()) return it->second;
-			auto it_up = mp4_by_quality.lower_bound(wanted);
-			if (it_up != mp4_by_quality.end()) return it_up->second;
+			int wanted = Helper::extract_quality_value(pref);
+			if (wanted > 0)
+			{
+				auto it = mp4_by_quality.find(wanted);
+				if (it != mp4_by_quality.end()) return it->second;
+				auto it_up = mp4_by_quality.lower_bound(wanted);
+				if (it_up != mp4_by_quality.end()) return it_up->second;
+				return mp4_by_quality.rbegin()->second;
+			}
+
 			return mp4_by_quality.rbegin()->second;
-		}
-
-		return mp4_by_quality.rbegin()->second;
-	};
+		};
 
 	int highest_mp4_quality = mp4_by_quality.empty() ? 0 : mp4_by_quality.rbegin()->first;
 	bool prefer_hls = false;
@@ -249,12 +258,37 @@ std::string RequestHandler::pick_from_asset_for_size(const json& a, const std::s
 		}
 	}
 
-	if (prefer_hls) return hls_candidate;
+	if (auto_hls_candidate.empty())
+		auto_hls_candidate = hls_candidate;
+
+	if (prefer_hls)
+	{
+		int wanted = Helper::extract_quality_value(pref);
+		if (wanted > 0 && !hls_by_quality.empty())
+		{
+			auto it = hls_by_quality.find(wanted);
+			if (it != hls_by_quality.end())
+				return it->second;
+
+			auto it_up = hls_by_quality.lower_bound(wanted);
+			if (it_up != hls_by_quality.end())
+				return it_up->second;
+
+			return hls_by_quality.rbegin()->second;
+		}
+	}
 
 	std::string picked_mp4 = pick_preferred_mp4();
-	if (!picked_mp4.empty()) return picked_mp4;
+	if (!picked_mp4.empty())
+		return picked_mp4;
 
-	return hls_candidate;
+	if (!auto_hls_candidate.empty())
+		return auto_hls_candidate;
+
+	if (!hls_candidate.empty())
+		return hls_candidate;
+
+	return hls_by_quality.rbegin()->second;
 }
 
 // ---------------- ctor / dtor ----------------
@@ -449,19 +483,19 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleSetting
 		bool new_subs = download_subtitles_;
 		bool new_assets = download_assets_;
 
-		if (in.contains("udemy_access_token")) new_token = in.value("udemy_access_token", std::string {});
-		if (in.contains("udemy_api_base"))    new_api = in.value("udemy_api_base", std::string {});
-		if (in.contains("http_proxy"))        new_proxy = in.value("http_proxy", std::string {});
+		if (in.contains("udemy_access_token")) new_token = in.value("udemy_access_token", std::string{});
+		if (in.contains("udemy_api_base"))    new_api = in.value("udemy_api_base", std::string{});
+		if (in.contains("http_proxy"))        new_proxy = in.value("http_proxy", std::string{});
 		if (in.contains("download_subtitles")) new_subs = in.value("download_subtitles", false);
 		if (in.contains("download_assets"))    new_assets = in.value("download_assets", false);
 
 		auto trim2 = [](std::string s)
-		{
-			auto ws = [](int c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; };
-			while (!s.empty() && ws((unsigned char) s.front())) s.erase(s.begin());
-			while (!s.empty() && ws((unsigned char) s.back()))  s.pop_back();
-			return s;
-		};
+			{
+				auto ws = [](int c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; };
+				while (!s.empty() && ws((unsigned char)s.front())) s.erase(s.begin());
+				while (!s.empty() && ws((unsigned char)s.back()))  s.pop_back();
+				return s;
+			};
 		new_token = trim2(new_token);
 		new_api = trim2(new_api);
 		new_proxy = trim2(new_proxy);
@@ -523,17 +557,17 @@ RequestHandler::handleCourses(int page, int page_size) {
 	}
 
 	auto fix_proto = [](std::string s)->std::string
-	{
-		// "//img-..." -> "https://img-..."
-		if (!s.empty() && s.rfind("//", 0) == 0) s = "https:" + s;
-		return s;
-	};
+		{
+			// "//img-..." -> "https://img-..."
+			if (!s.empty() && s.rfind("//", 0) == 0) s = "https:" + s;
+			return s;
+		};
 
 	auto make_abs = [&](std::string s)->std::string
-	{
-		if (!s.empty() && s[0] == '/') return api_base_ + s;
-		return s;
-	};
+		{
+			if (!s.empty() && s[0] == '/') return api_base_ + s;
+			return s;
+		};
 
 	try
 	{
@@ -557,11 +591,11 @@ RequestHandler::handleCourses(int page, int page_size) {
 			for (auto& c : raw["results"])
 			{
 				auto pick = [&](const char* key)->std::string
-				{
-					if (c.contains(key) && c[key].is_string())
-						return c[key].get<std::string>();
-					return {};
-				};
+					{
+						if (c.contains(key) && c[key].is_string())
+							return c[key].get<std::string>();
+						return {};
+					};
 
 
 				std::string img =
@@ -621,7 +655,7 @@ std::pair<status, std::string> RequestHandler::handleDownloadRaw(const std::stri
 		std::string url;
 		int course_id = in.value("course_id", 0);
 		int lecture_id = in.value("lecture_id", 0);
-		std::string quality = in.value("quality", "Auto");
+		std::string quality = in.value("quality", "720");
 		if (course_id && lecture_id)
 		{
 			url = resolve_lecture_stream(course_id, lecture_id, quality);
@@ -639,7 +673,7 @@ std::pair<status, std::string> RequestHandler::handleDownloadRaw(const std::stri
 		q["url"] = url;
 		q["filename"] = in.value("filename", "output.mp4");
 		q["course_id"] = course_id;
-		q["course_title"] = in.value("course_title", std::string {});
+		q["course_title"] = in.value("course_title", std::string{});
 		auto [st, resp] = handleQueueAdd(q.dump());
 		return { st, resp };
 	}
@@ -739,7 +773,7 @@ RequestHandler::handleQueueAdd(const std::string& body) {
 		int lecture_id = in.value("lecture_id", 0);
 		int asset_id = in.value("asset_id", 0);
 
-		std::string in_url = in.value("url", std::string {});
+		std::string in_url = in.value("url", std::string{});
 		if (in_url.empty())
 		{
 			if (asset_id && in.value("course_id", 0) && lecture_id)
@@ -759,12 +793,12 @@ RequestHandler::handleQueueAdd(const std::string& body) {
 		j.filename = in.value("filename", "");
 
 		j.course_id = in.value("course_id", 0);
-		j.course_title = in.value("course_title", std::string {});
+		j.course_title = in.value("course_title", std::string{});
 
 		j.section_index = in.value("section_index", 0);
-		j.section_title = in.value("section_title", std::string {});
+		j.section_title = in.value("section_title", std::string{});
 		j.lecture_index = in.value("lecture_index", 0);
-		j.lecture_title = in.value("lecture_title", std::string {});
+		j.lecture_title = in.value("lecture_title", std::string{});
 
 		if (j.course_id && !j.course_title.empty())
 		{
@@ -827,13 +861,13 @@ RequestHandler::handleQueueAdd(const std::string& body) {
 			auto dup = std::find_if(
 				queue_.begin(), queue_.end(),
 				[&](const Job& q)
-			{
-				return (q.url == j.url ||
+				{
+					return (q.url == j.url ||
 						(q.out_path_dir == j.out_path_dir &&
-						 q.filename == j.filename)) &&
-					q.state != Job::State::Done &&
-					q.state != Job::State::Failed;
-			});
+							q.filename == j.filename)) &&
+						q.state != Job::State::Done &&
+						q.state != Job::State::Failed;
+				});
 
 			if (dup != queue_.end())
 			{
@@ -874,18 +908,18 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleQueueLi
 	out["items"] = json::array();
 
 	auto jstate = [](RequestHandler::Job::State s) -> const char*
-	{
-		using S = RequestHandler::Job::State;
-		switch (s)
 		{
-		case S::Queued:       return "queued";
-		case S::Downloading:  return "downloading";
-		case S::Done:         return "done";
-		case S::Failed:       return "failed";
-		case S::Paused:       return "paused";
-		}
-		return "unknown";
-	};
+			using S = RequestHandler::Job::State;
+			switch (s)
+			{
+			case S::Queued:       return "queued";
+			case S::Downloading:  return "downloading";
+			case S::Done:         return "done";
+			case S::Failed:       return "failed";
+			case S::Paused:       return "paused";
+			}
+			return "unknown";
+		};
 
 	std::lock_guard<std::mutex> lk(mtx_);
 	out["items"] = json::array();
@@ -1014,22 +1048,22 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleQueueRe
 std::pair<boost::beast::http::status, std::string> RequestHandler::handleReconcile(const std::string& target) {
 	using status = boost::beast::http::status;
 	auto get_param = [&](const char* key)->std::string
-	{
-		auto qpos = target.find('?'); if (qpos == std::string::npos) return {};
-		std::string qs = target.substr(qpos + 1);
-		std::istringstream ss(qs); std::string kv;
-		while (std::getline(ss, kv, '&'))
 		{
-			auto eq = kv.find('='); if (eq == std::string::npos) continue;
-			auto k = kv.substr(0, eq), v = kv.substr(eq + 1);
-			if (k == key) return v;
-		}
-		return {};
-	};
+			auto qpos = target.find('?'); if (qpos == std::string::npos) return {};
+			std::string qs = target.substr(qpos + 1);
+			std::istringstream ss(qs); std::string kv;
+			while (std::getline(ss, kv, '&'))
+			{
+				auto eq = kv.find('='); if (eq == std::string::npos) continue;
+				auto k = kv.substr(0, eq), v = kv.substr(eq + 1);
+				if (k == key) return v;
+			}
+			return {};
+		};
 
 	int course_id = 0;
 	try { course_id = std::stoi(get_param("course_id")); }
-	catch (...) { }
+	catch (...) {}
 
 	json out; out["ok"] = true;
 	out["present"] = json::array();
@@ -1078,23 +1112,23 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleEstimat
 	using status = boost::beast::http::status;
 
 	auto get_param = [&](const char* key)->std::string
-	{
-		auto qpos = target.find('?'); if (qpos == std::string::npos) return {};
-		std::string qs = target.substr(qpos + 1);
-		std::istringstream ss(qs); std::string kv;
-		while (std::getline(ss, kv, '&'))
 		{
-			auto eq = kv.find('='); if (eq == std::string::npos) continue;
-			auto k = kv.substr(0, eq), v = kv.substr(eq + 1);
-			if (k == key) return v;
-		}
-		return {};
-	};
+			auto qpos = target.find('?'); if (qpos == std::string::npos) return {};
+			std::string qs = target.substr(qpos + 1);
+			std::istringstream ss(qs); std::string kv;
+			while (std::getline(ss, kv, '&'))
+			{
+				auto eq = kv.find('='); if (eq == std::string::npos) continue;
+				auto k = kv.substr(0, eq), v = kv.substr(eq + 1);
+				if (k == key) return v;
+			}
+			return {};
+		};
 
 	int course_id = 0;
 	try { course_id = std::stoi(get_param("course_id")); }
-	catch (...) { }
-	std::string quality = get_param("quality"); if (quality.empty()) quality = "Highest";
+	catch (...) {}
+	std::string quality = get_param("quality"); if (quality.empty()) quality = "720";
 
 	json out; out["ok"] = true;
 	if (!course_id) { out["ok"] = false; out["error"] = "missing course_id"; return { status::bad_request, out.dump() }; }
@@ -1127,7 +1161,7 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleEstimat
 				const std::string klass = it.value("_class", it.value("type", ""));
 				if (klass != "lecture") continue;
 
-				auto asset = it.contains("asset") ? it["asset"] : json {};
+				auto asset = it.contains("asset") ? it["asset"] : json{};
 				std::string urlv = pick_from_asset_for_size(asset, quality);
 				if (urlv.empty()) continue;
 				++videos;
@@ -1172,13 +1206,13 @@ std::pair<boost::beast::http::status, std::string> RequestHandler::handleEstimat
 
 
 static size_t file_write(void* ptr, size_t size, size_t nmemb, void* userdata) {
-	FILE* fp = (FILE*) userdata;
+	FILE* fp = (FILE*)userdata;
 	return fwrite(ptr, size, nmemb, fp);
 }
 
 static int curl_xferinfo_trampoline(void* clientp,
-									curl_off_t dltotal, curl_off_t dlnow,
-									curl_off_t /*ultotal*/, curl_off_t /*ulnow*/) {
+	curl_off_t dltotal, curl_off_t dlnow,
+	curl_off_t /*ultotal*/, curl_off_t /*ulnow*/) {
 	using CB = std::function<void(double, double)>;
 	auto* cb = reinterpret_cast<CB*>(clientp);
 	if (cb && *cb) (*cb)(static_cast<double>(dlnow), static_cast<double>(dltotal));
@@ -1278,221 +1312,221 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 	auto& a = j["asset"];
 
 	auto is_exact_1080 = [](const std::string& s) -> bool
-	{
-		if (s.empty()) return false;
-		for (char c : s)
 		{
-			if (!std::isdigit(static_cast<unsigned char>(c))) return false;
-		}
-		return Helper::extract_quality_value(s) == 1080;
-	};
+			if (s.empty()) return false;
+			for (char c : s)
+			{
+				if (!std::isdigit(static_cast<unsigned char>(c))) return false;
+			}
+			return Helper::extract_quality_value(s) == 1080;
+		};
 
 	if (is_exact_1080(prefer_quality))
 	{
 		auto make_absolute = [](const std::string& base_url, const std::string& rel) -> std::string
-		{
-			if (rel.empty()) return base_url;
-			if (rel.find("://") != std::string::npos) return rel;
-
-			std::string base_no_query = base_url;
-			std::string base_query;
-			auto qpos = base_no_query.find('?');
-			if (qpos != std::string::npos)
 			{
-				base_query = base_url.substr(qpos);
-				base_no_query = base_no_query.substr(0, qpos);
-			}
+				if (rel.empty()) return base_url;
+				if (rel.find("://") != std::string::npos) return rel;
 
-			auto append_query = [&](std::string result) -> std::string
-			{
-				if (!base_query.empty() && result.find('?') == std::string::npos)
-					result += base_query;
-				return result;
+				std::string base_no_query = base_url;
+				std::string base_query;
+				auto qpos = base_no_query.find('?');
+				if (qpos != std::string::npos)
+				{
+					base_query = base_url.substr(qpos);
+					base_no_query = base_no_query.substr(0, qpos);
+				}
+
+				auto append_query = [&](std::string result) -> std::string
+					{
+						if (!base_query.empty() && result.find('?') == std::string::npos)
+							result += base_query;
+						return result;
+					};
+
+				if (!rel.empty() && rel[0] == '/')
+				{
+					auto scheme_pos = base_no_query.find("://");
+					if (scheme_pos == std::string::npos) return append_query(rel);
+					auto host_end = base_no_query.find('/', scheme_pos + 3);
+					std::string origin = (host_end == std::string::npos)
+						? base_no_query
+						: base_no_query.substr(0, host_end);
+					return append_query(origin + rel);
+				}
+
+				std::string base_dir = base_no_query;
+				auto slash = base_dir.rfind('/');
+				if (slash == std::string::npos)
+					base_dir += '/';
+				else
+					base_dir = base_dir.substr(0, slash + 1);
+
+				return append_query(base_dir + rel);
 			};
-
-			if (!rel.empty() && rel[0] == '/')
-			{
-				auto scheme_pos = base_no_query.find("://");
-				if (scheme_pos == std::string::npos) return append_query(rel);
-				auto host_end = base_no_query.find('/', scheme_pos + 3);
-				std::string origin = (host_end == std::string::npos)
-					? base_no_query
-					: base_no_query.substr(0, host_end);
-				return append_query(origin + rel);
-			}
-
-			std::string base_dir = base_no_query;
-			auto slash = base_dir.rfind('/');
-			if (slash == std::string::npos)
-				base_dir += '/';
-			else
-				base_dir = base_dir.substr(0, slash + 1);
-
-			return append_query(base_dir + rel);
-		};
 
 		auto fetch_with_headers = [&](const std::string& src) -> std::string
-		{
-			CurlHandle ch; if (!ch.h) throw std::runtime_error("curl init failed");
+			{
+				CurlHandle ch; if (!ch.h) throw std::runtime_error("curl init failed");
 
-			struct curl_slist* hdr = nullptr;
-			std::vector<std::string> headers = {
-										std::string("User-Agent: ") + kDefaultUserAgent,
-										"Referer: https://www.udemy.com/",
-										"Origin: https://www.udemy.com"
+				struct curl_slist* hdr = nullptr;
+				std::vector<std::string> headers = {
+											std::string("User-Agent: ") + kDefaultUserAgent,
+											"Referer: https://www.udemy.com/",
+											"Origin: https://www.udemy.com"
+				};
+				append_auth_headers_for_url(src, headers);
+
+				for (auto& h : headers) hdr = curl_slist_append(hdr, h.c_str());
+
+				std::string out;
+				curl_easy_setopt(ch.h, CURLOPT_URL, src.c_str());
+				curl_easy_setopt(ch.h, CURLOPT_FOLLOWLOCATION, 1L);
+				curl_easy_setopt(ch.h, CURLOPT_MAXREDIRS, 8L);
+				curl_easy_setopt(ch.h, CURLOPT_USERAGENT, kDefaultUserAgent);
+				curl_easy_setopt(ch.h, CURLOPT_ACCEPT_ENCODING, "");
+				curl_easy_setopt(ch.h, CURLOPT_HTTPHEADER, hdr);
+				curl_easy_setopt(ch.h, CURLOPT_WRITEFUNCTION, Helper::write_to_string);
+				curl_easy_setopt(ch.h, CURLOPT_WRITEDATA, &out);
+				curl_easy_setopt(ch.h, CURLOPT_CONNECTTIMEOUT_MS, 8000L);
+				curl_easy_setopt(ch.h, CURLOPT_TIMEOUT_MS, 20000L);
+				curl_easy_setopt(ch.h, CURLOPT_SSL_VERIFYPEER, 1L);
+				curl_easy_setopt(ch.h, CURLOPT_SSL_VERIFYHOST, 2L);
+				if (!proxy_.empty()) curl_easy_setopt(ch.h, CURLOPT_PROXY, proxy_.c_str());
+
+				CURLcode rc = curl_easy_perform(ch.h);
+				if (hdr) curl_slist_free_all(hdr);
+
+				if (rc != CURLE_OK)
+				{
+					throw std::runtime_error(std::string("curl: ") + curl_easy_strerror(rc));
+				}
+
+				long code = 0;
+				curl_easy_getinfo(ch.h, CURLINFO_RESPONSE_CODE, &code);
+				if (code < 200 || code >= 300)
+				{
+					throw std::runtime_error("http " + std::to_string(code));
+				}
+
+				return out;
 			};
-			append_auth_headers_for_url(src, headers);
-
-			for (auto& h : headers) hdr = curl_slist_append(hdr, h.c_str());
-
-			std::string out;
-			curl_easy_setopt(ch.h, CURLOPT_URL, src.c_str());
-			curl_easy_setopt(ch.h, CURLOPT_FOLLOWLOCATION, 1L);
-			curl_easy_setopt(ch.h, CURLOPT_MAXREDIRS, 8L);
-			curl_easy_setopt(ch.h, CURLOPT_USERAGENT, kDefaultUserAgent);
-			curl_easy_setopt(ch.h, CURLOPT_ACCEPT_ENCODING, "");
-			curl_easy_setopt(ch.h, CURLOPT_HTTPHEADER, hdr);
-			curl_easy_setopt(ch.h, CURLOPT_WRITEFUNCTION, Helper::write_to_string);
-			curl_easy_setopt(ch.h, CURLOPT_WRITEDATA, &out);
-			curl_easy_setopt(ch.h, CURLOPT_CONNECTTIMEOUT_MS, 8000L);
-			curl_easy_setopt(ch.h, CURLOPT_TIMEOUT_MS, 20000L);
-			curl_easy_setopt(ch.h, CURLOPT_SSL_VERIFYPEER, 1L);
-			curl_easy_setopt(ch.h, CURLOPT_SSL_VERIFYHOST, 2L);
-			if (!proxy_.empty()) curl_easy_setopt(ch.h, CURLOPT_PROXY, proxy_.c_str());
-
-			CURLcode rc = curl_easy_perform(ch.h);
-			if (hdr) curl_slist_free_all(hdr);
-
-			if (rc != CURLE_OK)
-			{
-				throw std::runtime_error(std::string("curl: ") + curl_easy_strerror(rc));
-			}
-
-			long code = 0;
-			curl_easy_getinfo(ch.h, CURLINFO_RESPONSE_CODE, &code);
-			if (code < 200 || code >= 300)
-			{
-				throw std::runtime_error("http " + std::to_string(code));
-			}
-
-			return out;
-		};
 
 		auto pick_variant_from_master = [&](const std::string& master_url, const std::string& playlist) -> std::string
-		{
-			if (playlist.find("#EXT-X-KEY") != std::string::npos)
-				throw std::runtime_error("Encrypted stream. Exiting.");
-
-			struct Variant {
-				std::string uri;
-				int width = 0;
-				int height = 0;
-				long long bandwidth = 0;
-			};
-
-			std::vector<Variant> variants;
-			std::istringstream ss(playlist);
-			std::string line;
-			while (std::getline(ss, line))
 			{
-				if (!line.empty() && line.back() == '\r') line.pop_back();
-				std::string trimmed = Helper::trim(line);
-				if (trimmed.rfind("#EXT-X-STREAM-INF", 0) != 0) continue;
+				if (playlist.find("#EXT-X-KEY") != std::string::npos)
+					throw std::runtime_error("Encrypted stream. Exiting.");
 
-				Variant v;
-				auto colon = trimmed.find(':');
-				std::string attrs = (colon == std::string::npos) ? std::string {} : trimmed.substr(colon + 1);
-
-				auto find_attr = [&](const std::string& key) -> std::string
-				{
-					auto pos = attrs.find(key);
-					if (pos == std::string::npos) return {};
-					pos += key.size();
-					auto end = attrs.find(',', pos);
-					std::string val = (end == std::string::npos) ? attrs.substr(pos) : attrs.substr(pos, end - pos);
-					return Helper::trim(val);
+				struct Variant {
+					std::string uri;
+					int width = 0;
+					int height = 0;
+					long long bandwidth = 0;
 				};
 
-				std::string res = find_attr("RESOLUTION=");
-				auto x = res.find('x');
-				if (x != std::string::npos)
+				std::vector<Variant> variants;
+				std::istringstream ss(playlist);
+				std::string line;
+				while (std::getline(ss, line))
 				{
-					try
+					if (!line.empty() && line.back() == '\r') line.pop_back();
+					std::string trimmed = Helper::trim(line);
+					if (trimmed.rfind("#EXT-X-STREAM-INF", 0) != 0) continue;
+
+					Variant v;
+					auto colon = trimmed.find(':');
+					std::string attrs = (colon == std::string::npos) ? std::string{} : trimmed.substr(colon + 1);
+
+					auto find_attr = [&](const std::string& key) -> std::string
+						{
+							auto pos = attrs.find(key);
+							if (pos == std::string::npos) return {};
+							pos += key.size();
+							auto end = attrs.find(',', pos);
+							std::string val = (end == std::string::npos) ? attrs.substr(pos) : attrs.substr(pos, end - pos);
+							return Helper::trim(val);
+						};
+
+					std::string res = find_attr("RESOLUTION=");
+					auto x = res.find('x');
+					if (x != std::string::npos)
 					{
-						v.width = std::stoi(res.substr(0, x));
-						v.height = std::stoi(res.substr(x + 1));
+						try
+						{
+							v.width = std::stoi(res.substr(0, x));
+							v.height = std::stoi(res.substr(x + 1));
+						}
+						catch (...)
+						{
+							v.width = v.height = 0;
+						}
 					}
-					catch (...)
+
+					std::string bw = find_attr("BANDWIDTH=");
+					if (!bw.empty())
 					{
-						v.width = v.height = 0;
+						try { v.bandwidth = std::stoll(bw); }
+						catch (...) { v.bandwidth = 0; }
 					}
+
+					std::string next_line;
+					while (std::getline(ss, next_line))
+					{
+						if (!next_line.empty() && next_line.back() == '\r') next_line.pop_back();
+						std::string url_line = Helper::trim(next_line);
+						if (url_line.empty()) continue;
+						if (url_line.rfind("#", 0) == 0) continue;
+						v.uri = url_line;
+						break;
+					}
+
+					if (!v.uri.empty()) variants.push_back(std::move(v));
 				}
 
-				std::string bw = find_attr("BANDWIDTH=");
-				if (!bw.empty())
+				if (variants.empty()) return {};
+
+				const Variant* exact = nullptr;
+				const Variant* best_height = nullptr;
+				const Variant* best_bandwidth = nullptr;
+				for (auto& v : variants)
 				{
-					try { v.bandwidth = std::stoll(bw); }
-					catch (...) { v.bandwidth = 0; }
+					if (v.height == 1080 && v.width == 1920)
+					{
+						exact = &v;
+						break;
+					}
+					if (!best_height || v.height > best_height->height)
+						best_height = &v;
+					if (!best_bandwidth || v.bandwidth > best_bandwidth->bandwidth)
+						best_bandwidth = &v;
 				}
 
-				std::string next_line;
-				while (std::getline(ss, next_line))
+				const Variant* chosen = exact;
+				if (!chosen)
 				{
-					if (!next_line.empty() && next_line.back() == '\r') next_line.pop_back();
-					std::string url_line = Helper::trim(next_line);
-					if (url_line.empty()) continue;
-					if (url_line.rfind("#", 0) == 0) continue;
-					v.uri = url_line;
-					break;
+					if (best_height && best_height->height > 0) chosen = best_height;
+					else chosen = best_bandwidth;
 				}
 
-				if (!v.uri.empty()) variants.push_back(std::move(v));
-			}
-
-			if (variants.empty()) return {};
-
-			const Variant* exact = nullptr;
-			const Variant* best_height = nullptr;
-			const Variant* best_bandwidth = nullptr;
-			for (auto& v : variants)
-			{
-				if (v.height == 1080 && v.width == 1920)
-				{
-					exact = &v;
-					break;
-				}
-				if (!best_height || v.height > best_height->height)
-					best_height = &v;
-				if (!best_bandwidth || v.bandwidth > best_bandwidth->bandwidth)
-					best_bandwidth = &v;
-			}
-
-			const Variant* chosen = exact;
-			if (!chosen)
-			{
-				if (best_height && best_height->height > 0) chosen = best_height;
-				else chosen = best_bandwidth;
-			}
-
-			if (!chosen) return {};
-			return make_absolute(master_url, chosen->uri);
-		};
+				if (!chosen) return {};
+				return make_absolute(master_url, chosen->uri);
+			};
 
 		auto first_media_source = [&]() -> std::string
-		{
-			if (a.contains("media_sources") && a["media_sources"].is_array())
 			{
-				for (auto& m : a["media_sources"])
+				if (a.contains("media_sources") && a["media_sources"].is_array())
 				{
-					if (m.contains("src") && m["src"].is_string())
+					for (auto& m : a["media_sources"])
 					{
-						std::string src = m["src"].get<std::string>();
-						if (!src.empty()) return src;
+						if (m.contains("src") && m["src"].is_string())
+						{
+							std::string src = m["src"].get<std::string>();
+							if (!src.empty()) return src;
+						}
 					}
 				}
-			}
-			return {};
-		};
+				return {};
+			};
 
 		std::string master_src = first_media_source();
 		if (!master_src.empty())
@@ -1524,8 +1558,10 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 		if (su.contains("Video") && su["Video"].is_array() && !su["Video"].empty())
 		{
 			std::map<int, std::string> qmap;
+			std::map<int, std::string> hls_map;
 			std::string autoSrc;
 			std::string hlsSrc;
+			std::string autoHlsSrc;
 
 			for (auto& v : su["Video"])
 			{
@@ -1541,6 +1577,13 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 				{
 					if (hlsSrc.empty()) hlsSrc = file;
 					if (autoSrc.empty()) autoSrc = file;
+					if (autoHlsSrc.empty() && label == "Auto") autoHlsSrc = file;
+
+					int q = Helper::extract_quality_value(label);
+					if (q > 0)
+					{
+						hls_map[q] = file;
+					}
 					continue;
 				}
 
@@ -1560,14 +1603,28 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 				hlsSrc = a["hls_url"].get<std::string>();
 			}
 
-			if (hlsSrc.empty() && a.contains("media_sources") && a["media_sources"].is_array())
+			if (a.contains("media_sources") && a["media_sources"].is_array())
 			{
 				for (auto& m : a["media_sources"])
 				{
-					if (m.contains("src") && m["src"].is_string())
+					if (!m.contains("src") || !m["src"].is_string()) continue;
+
+					std::string src = m["src"].get<std::string>();
+					if (src.empty()) continue;
+
+					if (hlsSrc.empty()) hlsSrc = src;
+					if (autoSrc.empty()) autoSrc = src;
+					if (autoHlsSrc.empty())
 					{
-						hlsSrc = m["src"].get<std::string>();
-						if (!hlsSrc.empty()) break;
+						std::string lbl = m.value("label", m.value("quality", std::string{}));
+						if (lbl == "Auto") autoHlsSrc = src;
+					}
+
+					std::string label = m.value("label", m.value("quality", std::string{}));
+					int q = Helper::extract_quality_value(label);
+					if (q > 0)
+					{
+						hls_map[q] = src;
 					}
 				}
 			}
@@ -1594,8 +1651,42 @@ std::string RequestHandler::resolve_lecture_stream(int course_id, int lecture_id
 				}
 			}
 
+
+			if (autoHlsSrc.empty()) autoHlsSrc = hlsSrc;
+
 			if (prefer_hls)
 			{
+				int wanted = Helper::extract_quality_value(prefer_quality);
+				if (wanted > 0 && !hls_map.empty())
+				{
+					auto it = hls_map.find(wanted);
+					if (it != hls_map.end())
+					{
+						std::cout << "[HLS] Using HLS playlist: " << it->second << std::endl;
+						return it->second;
+					}
+
+					auto it_up = hls_map.lower_bound(wanted);
+					if (it_up != hls_map.end())
+					{
+						std::cout << "[HLS] Using HLS playlist: " << it_up->second << std::endl;
+						return it_up->second;
+					}
+
+					auto best = hls_map.rbegin();
+					if (best != hls_map.rend())
+					{
+						std::cout << "[HLS] Using HLS playlist: " << best->second << std::endl;
+						return best->second;
+					}
+				}
+
+				if (!autoHlsSrc.empty())
+				{
+					std::cout << "[HLS] Using HLS playlist: " << autoHlsSrc << std::endl;
+					return autoHlsSrc;
+				}
+
 				if (!hlsSrc.empty())
 				{
 					std::cout << "[HLS] Using HLS playlist: " << hlsSrc << std::endl;
@@ -1720,7 +1811,7 @@ void RequestHandler::worker_loop() {
 			if (stop_) break;
 
 			auto it = std::find_if(queue_.begin(), queue_.end(),
-								   [](const Job& x) { return x.state == Job::State::Queued; });
+				[](const Job& x) { return x.state == Job::State::Queued; });
 			if (it == queue_.end())
 			{
 				lk.unlock();
@@ -1732,7 +1823,7 @@ void RequestHandler::worker_loop() {
 		}
 
 		std::string lower_url = j.url;
-		std::transform(lower_url.begin(), lower_url.end(), lower_url.begin(), [](unsigned char c) { return (char) std::tolower(c); });
+		std::transform(lower_url.begin(), lower_url.end(), lower_url.begin(), [](unsigned char c) { return (char)std::tolower(c); });
 		bool is_hls = lower_url.find(".m3u8") != std::string::npos;
 
 		auto out_dir = std::filesystem::u8path(j.out_path_dir);
@@ -1746,40 +1837,40 @@ void RequestHandler::worker_loop() {
 
 		j.out_path = Helper::path_to_utf8(target_path);
 
-		std::atomic<double>     last_ts { now_sec() };
-		std::atomic<long long>  last_bytes { 0 };
+		std::atomic<double>     last_ts{ now_sec() };
+		std::atomic<long long>  last_bytes{ 0 };
 
 		auto on_progress = [this, &j, &last_ts, &last_bytes](double dlnow, double dltotal)
-		{
-			std::lock_guard<std::mutex> lk(mtx_);
-
-			j.bytes_now = static_cast<long long>(dlnow);
-			j.bytes_total = static_cast<long long>(dltotal);
-
-			double ts = now_sec();
-			const double dt = std::max(0.25, ts - last_ts.load());
-			long long db = j.bytes_now - last_bytes.load();
-			double inst = (double) db / dt; // B/s
-			if (j.speed_bps <= 0) j.speed_bps = inst;
-			else                  j.speed_bps = 0.25 * inst + 0.75 * j.speed_bps;
-
-			last_ts.store(ts);
-			last_bytes.store(j.bytes_now);
-
-			if (j.bytes_total > 0)
-				j.progress = (j.bytes_now * 100.0) / (double) j.bytes_total;
-
-			for (auto& q : queue_) if (q.id == j.id)
 			{
-				q.bytes_now = j.bytes_now;
-				q.bytes_total = j.bytes_total;
-				q.speed_bps = j.speed_bps;
-				q.progress = j.progress;
-				q.filename = j.filename;
-				q.out_path = j.out_path;
-				break;
-			}
-		};
+				std::lock_guard<std::mutex> lk(mtx_);
+
+				j.bytes_now = static_cast<long long>(dlnow);
+				j.bytes_total = static_cast<long long>(dltotal);
+
+				double ts = now_sec();
+				const double dt = std::max(0.25, ts - last_ts.load());
+				long long db = j.bytes_now - last_bytes.load();
+				double inst = (double)db / dt; // B/s
+				if (j.speed_bps <= 0) j.speed_bps = inst;
+				else                  j.speed_bps = 0.25 * inst + 0.75 * j.speed_bps;
+
+				last_ts.store(ts);
+				last_bytes.store(j.bytes_now);
+
+				if (j.bytes_total > 0)
+					j.progress = (j.bytes_now * 100.0) / (double)j.bytes_total;
+
+				for (auto& q : queue_) if (q.id == j.id)
+				{
+					q.bytes_now = j.bytes_now;
+					q.bytes_total = j.bytes_total;
+					q.speed_bps = j.speed_bps;
+					q.progress = j.progress;
+					q.filename = j.filename;
+					q.out_path = j.out_path;
+					break;
+				}
+			};
 
 		{
 			std::error_code ed;

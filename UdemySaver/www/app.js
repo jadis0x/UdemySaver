@@ -132,8 +132,22 @@ return url;
 function fmtBytes(b){ if(!isFinite(b)||b<=0) return ''; const KB=1024, MB=KB*1024, GB=MB*1024; if(b>=GB) return (b/GB).toFixed(2)+' GB'; if(b>=MB) return (b/MB).toFixed(1)+' MB'; if(b>=KB) return Math.round(b/KB)+' KB'; return b+' B'; }
 function clamp01(x){ return Math.max(0, Math.min(1, x)); }
 const pad3 = n => String(n).padStart(3,'0');
-const safe = s => (s||"").toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'-').replace(/-+/g,'-').replace(/^ -|-$/g,'').slice(0,60) || 'item';
-function preferredQuality(){ return localStorage.getItem('cf_quality_pref') || 'Highest'; }
+const safe = s => (s||"").toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,60) || 'item';
+function sanitizeFilename(name, fallback = 'item'){
+    const raw = (name||"").trim();
+    if(!raw) return fallback;
+    const lastDot = raw.lastIndexOf('.');
+    if(lastDot > 0 && lastDot < raw.length-1){
+        const base = safe(raw.slice(0,lastDot));
+        const ext = safe(raw.slice(lastDot+1));
+        if(base && ext) return `${base}.${ext}`;
+        if(base) return base;
+        if(ext) return `${fallback}.${ext}`;
+    }
+    const slug = safe(raw);
+    return slug || fallback;
+}
+function preferredQuality(){ return localStorage.getItem('cf_quality_pref') || '720'; }
 function updateQualityPill(){ if(qualityPill) qualityPill.textContent = t('quality.label', {q: preferredQuality()}); }
 
 /* ===== token save ===== */
@@ -318,7 +332,7 @@ return all;
 }
 
 /* ===== pick source ===== */
-function pickVideoSource(asset, preference="Highest"){
+function pickVideoSource(asset, preference="720"){
 if(!asset) return null;
 if(asset.download_urls && asset.download_urls.Video && asset.download_urls.Video.length){
 return {type:'mp4', label:'download', url:asset.download_urls.Video[0].file};
@@ -374,7 +388,7 @@ return null;
 }
 
 /* ===== enqueue ===== */
-async function enqueueLecture(course, lecture, idxInCourse, pref="Highest", opts={}){ 
+async function enqueueLecture(course, lecture, idxInCourse, pref="720", opts={}){ 
 const asset = lecture && lecture.asset; 
 if(!asset || asset.asset_type!=='Video') return {skipped:true}; 
 const picked = pickVideoSource(asset, pref); 
@@ -419,15 +433,14 @@ if(url) break;
 }
 }
 if(!url) continue;
-const p = {...base, filename:`${pad3(idxInCourse)} - ${safe(lecture.title)} - ${safe(name)}`, asset_id:a.id, url};
+const p = {...base, filename:`${pad3(idxInCourse)} - ${safe(lecture.title)} - ${sanitizeFilename(name)}`, asset_id:a.id, url};
 await fetch('/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
 }
 }
-
 return data; 
 }
 
-async function queueWholeCourse(course, preference="Highest"){ 
+async function queueWholeCourse(course, preference="720"){ 
 const opts = {subs: userOpts.subs, assets: userOpts.assets};
 showBusy('queue.collecting'); 
 try{ 
@@ -458,7 +471,7 @@ ensureCourseSize(course.id, preference);
 
 /* ===== course total size (lazy) ===== */
 const __courseSize = new Map(); // course_id -> {bytes, pending}
-async function estimateCourseSize(courseId, quality){ return await getJSON(`/estimate?course_id=${courseId}&quality=${encodeURIComponent(quality||'Highest')}`); }
+async function estimateCourseSize(courseId, quality){ return await getJSON(`/estimate?course_id=${courseId}&quality=${encodeURIComponent(quality||'720')}`); }
 async function ensureCourseSize(courseId, quality){ const entry = __courseSize.get(courseId); if(entry && (entry.pending || entry.bytes>0)) return; __courseSize.set(courseId,{bytes:0,pending:true}); const j = await estimateCourseSize(courseId, quality); __courseSize.set(courseId,{bytes:(j && j.total_bytes)||0,pending:false}); }
 
 /* ===== queue render ===== */
